@@ -4,6 +4,7 @@ import styled from "styled-components";
 import Blockie from "./Blockie";
 import { ellipseAddress, getChainData } from "../helpers/utilities";
 import { fonts, responsive, transitions } from "../styles";
+import { useWalletConnectContext } from "src/context/walletConnectContext";
 
 const SHeader = styled.div`
   margin-top: -1px;
@@ -74,25 +75,18 @@ const SDisconnect = styled.div<IHeaderStyle>`
   }
 `;
 
-interface IHeaderProps {
-  killSession: () => void;
-  connected: boolean;
-  address: string;
-  chainId: number;
-}
-
-const Header = (props: IHeaderProps) => {
-  const { connected, address, chainId, killSession } = props;
+const Header = () => {
+  const { connected, address, chainId, killSession } = useWalletConnectContext();
   const activeChain = chainId ? getChainData(chainId).name : null;
   return (
-    <SHeader {...props}>
+    <SHeader>
       {activeChain && (
         <SActiveChain>
           <p>{`Connected to`}</p>
           <p>{activeChain}</p>
         </SActiveChain>
       )}
-      {address && (
+      {(address && killSession) && (
         <SActiveAccount>
           <SBlockie address={address} />
           <SAddress connected={connected}>{ellipseAddress(address)}</SAddress>

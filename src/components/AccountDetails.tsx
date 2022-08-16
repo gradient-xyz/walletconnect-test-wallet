@@ -41,6 +41,19 @@ const AccountDetails = (props: IAccountDetailsProps) => {
     index,
     display_address: ellipseAddress(addr, ellipseLength),
   }));
+
+  function updateAddress(activeIndex: number) {
+    if(updateSession) {
+      updateSession(undefined, activeIndex)
+    }
+  }
+
+  function updateChain(chainId: number | string) {
+    if(updateSession) {
+      updateSession(Number(chainId), undefined)
+    }
+  }
+
   return (
     <React.Fragment>
       <SSection>

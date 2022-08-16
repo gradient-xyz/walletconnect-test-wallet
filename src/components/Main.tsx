@@ -1,6 +1,17 @@
 import React from "react";
 import styled from "styled-components"
 import { useWalletConnectContext } from "src/context/walletConnectContext"
+import Header from "./Header";
+import Card from "./Card";
+import { getAppConfig } from "src/config";
+import { PeerDataCol } from "./PeerDataCol";
+import AccountDetails from "./AccountDetails";
+import Column from "./Column";
+import QRCodeScanner, { IQRCodeValidateResponse } from "./QRCodeScanner";
+import RequestButton from "./RequestButton";
+import RequestDisplay from "./RequestDisplay";
+import Button from "./Button";
+import Input from "./Input";
 
 const SContainer = styled.div`
   display: flex;
@@ -11,15 +22,6 @@ const SContainer = styled.div`
   max-width: 600px;
   margin: 0 auto;
   padding: 0;
-`;
-
-const SVersionNumber = styled.div`
-  position: absolute;
-  font-size: 12px;
-  bottom: 6%;
-  right: 0;
-  opacity: 0.3;
-  transform: rotate(-90deg);
 `;
 
 const SContent = styled.div`
@@ -93,133 +95,136 @@ const SRequestButton = styled(RequestButton)`
 
 export const Main = () => {
 
-    const { connected address, chainId, killSession } = useWalletConnectContext();
+    const { connected, requests, peerMeta, payload, connect, openRequest, approveRequest, rejectRequest } = useWalletConnectContext();
 
     const [scanner, setScanner] = React.useState(false)
-  const toggleScanner = () => {
-    console.log("ACTION", "toggleScanner");
-    setScanner(!scanner)
-  };
-
-  const onQRCodeValidate = (data: string): IQRCodeValidateResponse => {
-    const res: IQRCodeValidateResponse = {
-      error: null,
-      result: null,
+    const toggleScanner = () => {
+        console.log("ACTION", "toggleScanner");
+        setScanner(!scanner)
     };
-    try {
-      res.result = data;
-    } catch (error) {
-      res.error = error;
+
+    const onQRCodeValidate = (data: string): IQRCodeValidateResponse => {
+        const res: IQRCodeValidateResponse = {
+            error: null,
+            result: null,
+        };
+        try {
+            res.result = data;
+        } catch (error) {
+            res.error = error;
+        }
+
+        return res;
+    };
+
+    const onQRCodeScan = async (data: any) => {
+        const uri = typeof data === "string" ? data : "";
+        if (uri) {
+            await connect!(uri)
+            toggleScanner();
+        }
+    };
+
+    const onURIPaste = async (e: any) => {
+        const data = e.target.value;
+        const uri = typeof data === "string" ? data : "";
+        if (uri) {
+            await connect!(uri)
+        }
+    };
+
+    const onQRCodeError = (error: Error) => {
+        throw error;
+    };
+
+    const onQRCodeClose = () => toggleScanner();
+
+    const ConnectionSection = () => {
+        if (connected) {
+            return (<PeerDataCol/>)
+        } else {
+            return (
+<Column>
+                            <AccountDetails
+                                chains={getAppConfig().chains}
+                            />
+                            <SActionsColumn>
+                                <SButton onClick={toggleScanner}>{`Scan`}</SButton>
+                                {getAppConfig().styleOpts.showPasteUri && (
+                                    <>
+                                        <p>{"OR"}</p>
+                                        <SInput onChange={onURIPaste} placeholder={"Paste wc: uri"} />
+                                    </>
+                                )}
+                            </SActionsColumn>
+                        </Column>
+            )
+        }
     }
 
-    return res;
-  };
-
-  const onQRCodeScan = async (data: any) => {
-    const uri = typeof data === "string" ? data : "";
-    if (uri) {
-      await setState({ uri });
-      await initWalletConnect();
-      toggleScanner();
+    const RequestSection = () => {
+        if(payload) {
+            return (
+<RequestDisplay
+                        payload={payload}
+                        peerMeta={peerMeta}
+                        renderPayload={(payload: any) => getAppConfig().rpcEngine.render(payload)}
+                        approveRequest={approveRequest}
+                        rejectRequest={rejectRequest}
+                    />
+            )
+        } else {
+            return (
+                <Column>
+                        <AccountDetails
+                            chains={getAppConfig().chains}
+                        />
+                        {peerMeta && peerMeta.name && (
+                            <>
+                                <h6>{"Connected to"}</h6>
+                                <SConnectedPeer>
+                                    <img src={peerMeta.icons[0]} alt={peerMeta.name} />
+                                    <div>{peerMeta.name}</div>
+                                </SConnectedPeer>
+                            </>
+                        )}
+                        <h6>{"Pending Call Requests"}</h6>
+                        {requests.length ? (
+                            requests.map(request => (
+                                <SRequestButton key={request.id} onClick={() => openRequest!(request)}>
+                                    <div>{request.method}</div>
+                                </SRequestButton>
+                            ))
+                        ) : (
+                            <div>
+                                <div>{"No pending requests"}</div>
+                            </div>
+                        )}
+                    </Column>
+            )
+        }
     }
-  };
-
-  const onURIPaste = async (e: any) => {
-    const data = e.target.value;
-    const uri = typeof data === "string" ? data : "";
-    if (uri) {
-      await setState({ uri });
-      await initWalletConnect();
-    }
-  };
-
-  const onQRCodeError = (error: Error) => {
-    throw error;
-  };
-
-  const onQRCodeClose = () => toggleScanner();
 
     return (
-    <SContainer>
-          <Header
-            connected={connected}
-            address={address}
-            chainId={chainId}
-            killSession={killSession}
-          />
-          <SContent>
-            <Card maxWidth={400}>
-              <SLogo>
-                <img src={getAppConfig().logo} alt={getAppConfig().name} />
-              </SLogo>
-              {!connected ? <PeerDataCol /> : (
-                  <Column>
-                    <AccountDetails
-                      chains={getAppConfig().chains}
-                    />
-                    <SActionsColumn>
-                      <SButton onClick={toggleScanner}>{`Scan`}</SButton>
-                      {getAppConfig().styleOpts.showPasteUri && (
-                        <>
-                          <p>{"OR"}</p>
-                          <SInput onChange={onURIPaste} placeholder={"Paste wc: uri"} />
-                        </>
-                      )}
-                    </SActionsColumn>
-                  </Column>
-                )
-              ) : !payload ? (
-                <Column>
-                  <AccountDetails
-                    chains={getAppConfig().chains}
-                    address={address}
-                    activeIndex={activeIndex}
-                    chainId={chainId}
-                    accounts={accounts}
-                    updateAddress={updateAddress}
-                    updateChain={updateChain}
-                  />
-                  {peerMeta && peerMeta.name && (
-                    <>
-                      <h6>{"Connected to"}</h6>
-                      <SConnectedPeer>
-                        <img src={peerMeta.icons[0]} alt={peerMeta.name} />
-                        <div>{peerMeta.name}</div>
-                      </SConnectedPeer>
-                    </>
-                  )}
-                  <h6>{"Pending Call Requests"}</h6>
-                  {requests.length ? (
-                    requests.map(request => (
-                      <SRequestButton key={request.id} onClick={() => openRequest(request)}>
-                        <div>{request.method}</div>
-                      </SRequestButton>
-                    ))
-                  ) : (
-                    <div>
-                      <div>{"No pending requests"}</div>
-                    </div>
-                  )}
-                </Column>
-              ) : (
-                <RequestDisplay
-                  payload={payload}
-                  peerMeta={peerMeta}
-                  renderPayload={(payload: any) => getAppConfig().rpcEngine.render(payload)}
-                  approveRequest={approveRequest}
-                  rejectRequest={rejectRequest}
+        <SContainer>
+            <Header/>
+            <SContent>
+                <Card maxWidth={400}>
+                    <SLogo>
+                        <img src={getAppConfig().logo} alt={getAppConfig().name} />
+                    </SLogo>
+                    <ConnectionSection/>
+                    <RequestSection />
+                </Card>
+            </SContent>
+            {scanner && (
+                <QRCodeScanner
+                    onValidate={onQRCodeValidate}
+                    onScan={onQRCodeScan}
+                    onError={onQRCodeError}
+                    onClose={onQRCodeClose}
                 />
-              )}
-            </Card>
-          </SContent>
-          {scanner && (
-            <QRCodeScanner
-              onValidate={onQRCodeValidate}
-              onScan={onQRCodeScan}
-              onError={onQRCodeError}
-              onClose={onQRCodeClose}
-            />
-          )}
+            )}
         </SContainer>
-        )
+    )
 }

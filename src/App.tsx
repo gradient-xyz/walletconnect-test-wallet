@@ -1,16 +1,37 @@
 import * as React from "react";
-import { Amplify } from 'aws-amplify';
+import { Amplify} from 'aws-amplify';
 import styled from "styled-components"
 
-import { withAuthenticator } from '@aws-amplify/ui-react';
+// import { withAuthenticator } from '@aws-amplify/ui-react';
 import '@aws-amplify/ui-react/styles.css';
-import awsExports from './aws-exports';
+// import { CognitoHostedUIIdentityProvider, CognitoUser } from '@aws-amplify/auth';
 
 import { Web3ContextProvider } from "./context/walletConnectContext";
 import { Main } from "./components/Main";
 import { getAppConfig } from "./config";
+// import { useEffect, useState } from "react";
+import { Authenticator } from "@aws-amplify/ui-react";
 
-Amplify.configure(awsExports);
+Amplify.configure({
+  aws_cognito_region: 'us-west-2', // (required) - Region where Amazon Cognito project was created
+  aws_user_pools_id: 'us-west-2_aROxhrnRw', // (optional) -  Amazon Cognito User Pool ID
+  aws_user_pools_web_client_id: '48fars57hcget42e3pq5c0nccb', // (optional) - Amazon Cognito App Client ID (App client secret needs to be disabled)
+  aws_cognito_identity_pool_id:
+    'us-west-2:956b16c0-a11e-4b1f-8468-813e145590ea', // (optional) - Amazon Cognito Identity Pool ID
+  aws_mandatory_sign_in: 'enable', // (optional) - Users are not allowed to get the aws credentials unless they are signed in
+
+  oauth: {
+    domain: 'bryan-test.auth.us-west-2.amazoncognito.com',
+    scope: [
+      'email',
+      'aws.cognito.signin.user.admin'
+    ],
+    redirectSignIn: 'http://localhost:3000/',
+    redirectSignOut: 'http://localhost:3000/',
+    clientId: '1g0nnr4h99a3sd0vfs9',
+    responseType: 'code' // or 'token', note that REFRESH token will only be generated when the responseType is code
+  }
+});
 
 const SVersionNumber = styled.div`
   position: absolute;
@@ -111,17 +132,45 @@ const App = () => {
   //   await setState({ connector });
   // };
 
-    return (
-      <React.Fragment>
-        <Web3ContextProvider>
-          <Main />
-        </Web3ContextProvider>
-        {getAppConfig().styleOpts.showVersion && (
-          <SVersionNumber>{`v${process.env.REACT_APP_VERSION}`} </SVersionNumber>
-        )}
-      </React.Fragment>
-    );
+  // const [user, setUser] = useState<CognitoUser | null>(null);
+  // const [customState, setCustomState] = useState<any | null>(null);
+
+  // useEffect(() => {
+  //   const unsubscribe = Hub.listen("auth", ({ payload: { event, data } }) => {
+  //     switch (event) {
+  //       case "signIn":
+  //         setUser(data);
+  //         break;
+  //       case "signOut":
+  //         setUser(null);
+  //         break;
+  //       case "customOAuthState":
+  //         setCustomState(data);
+  //     }
+  //   });
+
+  //   Auth.currentAuthenticatedUser()
+  //     .then(currentUser => setUser(currentUser))
+  //     .catch(() => console.log("Not signed in"));
+
+  //   return unsubscribe;
+  // }, []);
+
+
+  return (
+    <React.Fragment>
+      <Authenticator socialProviders={['google']}>
+      <Web3ContextProvider>
+        <Main />
+      </Web3ContextProvider>
+      </Authenticator>
+      {getAppConfig().styleOpts.showVersion && (
+        <SVersionNumber>{`v${process.env.REACT_APP_VERSION}`} </SVersionNumber>
+      )}
+      
+    </React.Fragment>
+  );
   
 }
 
-export default withAuthenticator(App);
+export default App;

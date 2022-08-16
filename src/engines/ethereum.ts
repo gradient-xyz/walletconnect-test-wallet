@@ -1,6 +1,6 @@
 import { signingMethods, convertHexToNumber } from "@walletconnect/utils";
 
-import { IAppState } from "../App";
+import { WCState } from "../context/walletConnectContext";
 import { apiGetCustomRequest } from "../helpers/api";
 import { convertHexToUtf8IfPossible } from "../helpers/utilities";
 import { IRequestRenderParams, IRpcEngine } from "../helpers/types";
@@ -16,7 +16,7 @@ export function filterEthereumRequests(payload: any) {
   );
 }
 
-export async function routeEthereumRequests(payload: any, state: IAppState, setState: any) {
+export async function routeEthereumRequests(payload: any, state: WCState, setState: any) {
   if (!state.connector) {
     return;
   }
@@ -105,7 +105,7 @@ export function renderEthereumRequests(payload: any): IRequestRenderParams[] {
   return params;
 }
 
-export async function signEthereumRequests(payload: any, state: IAppState, setState: any) {
+export async function signEthereumRequests(payload: any, state: WCState, setState: any) {
   const { connector, address, activeIndex, chainId } = state;
 
   let errorMsg = "";

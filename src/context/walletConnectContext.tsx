@@ -1,4 +1,4 @@
-import React, { createContext, ReactChild, useCallback, useContext, useEffect, useReducer, useState } from "react";
+import React, { createContext, ReactChild, useCallback, useContext, useEffect, useReducer } from "react";
 import { getAppControllers } from "../controllers";
 import { getAppConfig } from "../config";
 
@@ -7,7 +7,7 @@ import WalletConnect from "@walletconnect/client";
 import { getCachedSession } from "src/helpers/utilities";
 import { IClientMeta } from "@walletconnect/types";
 
-interface WCState {
+export interface WCState {
     connect: ((uri: string) => Promise<void>) | null;
     approveSession: (() => void) | null;
     rejectSession: (() => void) | null;
@@ -105,11 +105,24 @@ type WCAction =
     | {
         type: 'reset'
     }
+    | {
+        type: 'connected'
+    }
+    | {
+        type: 'callRequest',
+        payload: any
+    }
 
 const wcReducer = (state: WCState, action: WCAction): WCState => {
     switch(action.type) {
         case 'reset':
             return INITIAL_STATE
+
+        case 'connected':
+            return {
+                ...state,
+                connected: state.connector?.connected || false
+            }
 
         case 'updateSession':
             return {
@@ -150,6 +163,10 @@ const wcReducer = (state: WCState, action: WCAction): WCState => {
                 payload: null
             }
 
+        case 'callRequest':
+            state.requests.push(action.payload)
+            return state
+
         default:
             throw new Error('unhandled type in reducer ' + action)
     }
@@ -165,7 +182,7 @@ const wcReducer = (state: WCState, action: WCAction): WCState => {
 
         if (!session) {
             // TODO replace with API call to get wallets
-            await getAppControllers().wallet.init(activeIndex, chainId);
+            getAppControllers().wallet.init(activeIndex, chainId);
         } else {
             const connector = new WalletConnect({ session });
 
@@ -183,11 +200,11 @@ const wcReducer = (state: WCState, action: WCAction): WCState => {
 
             dispatch({
                 type: 'updateSession',
-                activeIndex: activeIndex,
-                chainId: chainId
+                activeIndex,
+                chainId
             })
 
-            await getAppControllers().wallet.init(activeIndex, chainId);
+            getAppControllers().wallet.init(activeIndex, chainId);
         }
     })
 
@@ -204,7 +221,7 @@ const wcReducer = (state: WCState, action: WCAction): WCState => {
           dispatch({
             type: 'connect',
             connector
-          } as WCAction)
+          })
 
         } catch (error) {
         //   setState({ loading: false });
@@ -256,7 +273,7 @@ const wcReducer = (state: WCState, action: WCAction): WCState => {
             })
         }
 
-        await getAppControllers().wallet.update(newActiveIndex, newChainId)
+        getAppControllers().wallet.update(newActiveIndex, newChainId)
 
         dispatch({
             type: 'updateSession',
@@ -307,7 +324,6 @@ const wcReducer = (state: WCState, action: WCAction): WCState => {
             });
           }
 
-
           dispatch({
             type: 'removeRequest'
           })
@@ -318,7 +334,7 @@ const wcReducer = (state: WCState, action: WCAction): WCState => {
 
         if (connector) {
             console.log("ACTION", "subscribeToEvents");
-            const handleSessionRequest = (error, payload) => {
+            const handleSessionRequest = (error: any, payload: any) => {
                 console.log("EVENT", "session_request");
 
                 if (error) {
@@ -333,7 +349,7 @@ const wcReducer = (state: WCState, action: WCAction): WCState => {
             }
             connector.on("session_request", handleSessionRequest);
 
-            const handleSessionUpdate = error => {
+            const handleSessionUpdate = (error: any) => {
                 console.log("EVENT", "session_update");
 
                 if (error) {
@@ -343,7 +359,7 @@ const wcReducer = (state: WCState, action: WCAction): WCState => {
 
             connector.on("session_update", handleSessionUpdate);
 
-            const handleCallRequest = async (error, payload) => {
+            const handleCallRequest = async (error: any, payload: any) => {
                 // tslint:disable-next-line
                 console.log("EVENT", "call_request", "method", payload.method);
                 console.log("EVENT", "call_request", "params", payload.params);
@@ -352,29 +368,38 @@ const wcReducer = (state: WCState, action: WCAction): WCState => {
                     throw error;
                 }
 
-                await getAppConfig().rpcEngine.router(payload, state, bindedSetState);
+                dispatch({
+                    type: 'callRequest',
+                    payload,
+                })
+
+                // await getAppConfig().rpcEngine.router(payload, state, bindedSetState);
             }
             connector.on("call_request", handleCallRequest);
 
-            const handleConnect = (error, payload) => {
+            const handleConnect = (error: any, payload: any) => {
                 console.log("EVENT", "connect");
 
                 if (error) {
                     throw error;
                 }
 
-                setState({ connected: true });
+                dispatch({
+                    type: 'connected'
+                })
             }
             connector.on("connect", handleConnect);
 
-            const handleDisconnect = (error, payload) => {
+            const handleDisconnect = (error: any, payload: any) => {
                 console.log("EVENT", "disconnect");
 
                 if (error) {
                     throw error;
                 }
 
-                resetApp();
+                dispatch({
+                    type: 'reset'
+                })
             }
             connector.on("disconnect", handleDisconnect);
 
@@ -391,13 +416,14 @@ const wcReducer = (state: WCState, action: WCAction): WCState => {
             //   }
 
             return () => {
-                connector.removeListener("session_request", handleSessionRequest)
-                connector.removeListener("session_update", handleSessionUpdate)
-                connector.removeListener("call_request", handleCallRequest)
-                connector.removeListener("connect", handleConnect)
-                connector.removeListener("disconnect", handleDisconnect)
-
+                connector.off("session_request")
+                connector.off("session_update")
+                connector.off("call_request")
+                connector.off("connect")
+                connector.off("disconnect")
             }
+        } else {
+            return () => null
         }
     }, [connector, connected])
 
@@ -419,7 +445,7 @@ const WalletConnectContext = createContext(INITIAL_STATE)
 
 export const useWalletConnectContext = () => useContext(WalletConnectContext)
 
-export type WalletConnectContextProviderProps = {
+export interface WalletConnectContextProviderProps {
     children: ReactChild
 }
 
@@ -429,6 +455,6 @@ export const Web3ContextProvider = ({ children }: WalletConnectContextProviderPr
     return (
         <WalletConnectContext.Provider value= { wcState } >
         { children }
-        < /WalletConnectContext.Provider>
+        </WalletConnectContext.Provider>
     )
   }

@@ -18,14 +18,21 @@ const SActions = styled.div`
 
 export const PeerDataCol = () => {
     const { peerMeta, approveSession, rejectSession } = useWalletConnectContext()
-    return (
-        peerMeta && peerMeta.name ? (
-          <Column>
-            <PeerMeta peerMeta={peerMeta} />
-            <SActions>
-              <Button onClick={approveSession}>{`Approve`}</Button>
-              <Button onClick={rejectSession}>{`Reject`}</Button>
-            </SActions>
-          </Column>
+    if (peerMeta?.name) {
+        return (
+            <>peerMeta.name</>
         )
+    } else if (peerMeta) {
+        return (
+            <Column>
+                <PeerMeta peerMeta={peerMeta} />
+                <SActions>
+                    <Button onClick={approveSession}>{`Approve`}</Button>
+                    <Button onClick={rejectSession}>{`Reject`}</Button>
+                </SActions>
+            </Column>
+        )
+    } else {
+        return (<></>)
+    }
 }

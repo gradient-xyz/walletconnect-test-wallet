@@ -1,6 +1,7 @@
 import * as React from "react";
 import styled from "styled-components";
 import QrReader from "react-qr-reader";
+import { useState } from "react";
 
 const SQRCodeScannerContainer = styled.div`
   position: fixed;
@@ -68,63 +69,63 @@ interface IQRCodeScannerState {
   delay: number | false;
 }
 
-class QRCodeScanner extends React.Component<IQRCodeScannerProps, IQRCodeScannerState> {
-  public state = {
+const QRCodeScanner = (props: IQRCodeScannerProps) => {
+  const [state, setState] = useState<IQRCodeScannerState>({
     delay: 300,
+  })
+
+  const stopRecording = () => {
+    setState({ delay: false });
   };
 
-  public stopRecording = async () => {
-    await this.setState({ delay: false });
-  };
-
-  public handleScan = (data: string) => {
+  const handleScan = (data: string) => {
     if (data) {
-      const { result, error } = this.props.onValidate(data);
+      const { result, error } = props.onValidate(data);
       if (result) {
-        this.stopRecording();
-        this.props.onScan(result);
+        stopRecording();
+        props.onScan(result);
       } else {
-        this.handleError(error);
+        handleError(error);
       }
     }
   };
 
-  public handleError = (error: Error | null) => {
+  const handleError = (error: Error | null) => {
     if (error) {
-      this.props.onError(error);
+      props.onError(error);
     }
   };
 
-  public onClose = async () => {
+  const onClose = () => {
     try {
-      await this.stopRecording();
-      this.props.onClose();
+      stopRecording();
+      props.onClose();
     } catch (error) {
-      this.handleError(error);
+      handleError(error);
     }
   };
 
-  public componentWillUnmount() {
-    this.stopRecording();
-  }
-  public render() {
+  React.useEffect(() => {
+    return () => stopRecording()
+  })
+  
     return (
       <SQRCodeScannerContainer>
-        <SCloseButton onClick={this.onClose}>
+        <SCloseButton onClick={onClose}>
           <SFirstLine />
           <SSecondLine />
         </SCloseButton>
         <SQRCodeScannerWrapper>
           <QrReader
-            delay={this.state.delay}
-            onError={this.handleError}
-            onScan={this.handleScan}
+            delay={state.delay}
+            onError={handleError}
+            onScan={handleScan}
             style={{ width: "100%" }}
           />
         </SQRCodeScannerWrapper>
       </SQRCodeScannerContainer>
     );
-  }
+  
 }
 
 export default QRCodeScanner;
