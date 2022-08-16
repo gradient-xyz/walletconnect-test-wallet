@@ -1,4 +1,5 @@
 import * as React from "react";
+import { useWalletConnectContext } from "src/context/walletConnectContext";
 import styled from "styled-components";
 import Dropdown from "../components/Dropdown";
 import { IChainData } from "../helpers/types";
@@ -26,16 +27,11 @@ const SAddressDropdownWrapper = styled.div`
 
 interface IAccountDetailsProps {
   chains: IChainData[];
-  updateAddress?: any;
-  updateChain?: any;
-  accounts: string[];
-  activeIndex: number;
-  address: string;
-  chainId: number;
 }
 
 const AccountDetails = (props: IAccountDetailsProps) => {
-  const { chains, chainId, address, activeIndex, accounts, updateAddress, updateChain } = props;
+  const {chains} = props
+  const { chainId, address, activeIndex, accounts, updateSession } = useWalletConnectContext();
   const windowWidth = getViewportDimensions().x;
   const maxWidth = 468;
   const maxChar = 12;

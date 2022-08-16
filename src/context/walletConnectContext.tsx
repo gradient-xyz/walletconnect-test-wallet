@@ -11,9 +11,14 @@ interface WCState {
     connect: ((uri: string) => Promise<void>) | null;
     approveSession: (() => void) | null;
     rejectSession: (() => void) | null;
+    killSession: (() => void) | null;
+    updateSession: ((chainId?: number, activeIndex?: number) => void) | null;
+    openRequest: ((request: any) => void) | null;
+    closeRequest: (() => void) | null;
+    approveRequest: (() => void) | null;
+    rejectRequest: (() => void) | null;
 
     loading: boolean;
-    scanner: boolean;
     connector: WalletConnect | null;
     uri: string;
     peerMeta: IClientMeta | null;
@@ -32,9 +37,16 @@ const DEFAULT_ADDRESS = DEFAULT_ACCOUNTS[DEFAULT_ACTIVE_INDEX];
 
 const INITIAL_STATE: WCState = {
     connect: null,
+    approveSession: null,
+    rejectSession: null,
+    killSession: null,
+    updateSession: null,
+    openRequest: null,
+    closeRequest: null,
+    approveRequest: null,
+    rejectRequest: null,
 
     loading: false,
-    scanner: false,
     connector: null,
     uri: "",
     peerMeta: {
@@ -42,7 +54,6 @@ const INITIAL_STATE: WCState = {
         url: "",
         icons: [],
         name: "",
-        ssl: false,
     },
     connected: false,
     chainId: getAppConfig().chainId || DEFAULT_CHAIN_ID,
@@ -70,8 +81,8 @@ type WCAction =
     }
     | {
         type: 'updateSession',
-        chainId: number,
-        activeIndex: number
+        chainId?: number,
+        activeIndex?: number
     }
     | {
         type: 'setUri',
@@ -79,16 +90,13 @@ type WCAction =
     }
     | {
         type: 'openRequest'
-        request: any
+        payload: any
     }
     | {
         type: 'closeRequest'
     }
     | {
-        type: 'approveRequest'
-    }
-    | {
-        type: 'rejectRequest'
+        type: 'removeRequest'
     }
     | {
         type: 'sessionRequest',
@@ -106,9 +114,9 @@ const wcReducer = (state: WCState, action: WCAction): WCState => {
         case 'updateSession':
             return {
                 ...state,
-                chainId: action.chainId,
-                activeIndex: action.activeIndex,
-                address: state.accounts[action.activeIndex]
+                chainId: action.chainId || state.chainId,
+                activeIndex: action.activeIndex || state.activeIndex,
+                address: state.accounts[action.activeIndex || state.activeIndex]
             }
 
         case 'connect':
@@ -121,6 +129,27 @@ const wcReducer = (state: WCState, action: WCAction): WCState => {
                 loading: false
             }
 
+        case 'openRequest':
+            return {
+                ...state,
+                payload: action.payload
+            }
+
+        case 'removeRequest':
+            const { requests, payload } = state;
+            const filteredRequests = requests.filter(request => request.id !== payload.id);
+            return {
+                ...state,
+                requests: filteredRequests,
+                payload: null
+            }
+
+        case 'closeRequest':
+            return {
+                ...state,
+                payload: null
+            }
+
         default:
             throw new Error('unhandled type in reducer ' + action)
     }
@@ -128,7 +157,7 @@ const wcReducer = (state: WCState, action: WCAction): WCState => {
 
   const useWalletConnect = (): WCState => {
     const [state, dispatch] = useReducer(wcReducer, INITIAL_STATE)
-    const { connector, connected, activeIndex, chainId, address } = state
+    const { connector, connected, activeIndex, chainId, address, payload, accounts } = state
 
     useEffect(() => {
         // re-establsh session if there is an existing one
@@ -214,6 +243,75 @@ const wcReducer = (state: WCState, action: WCAction): WCState => {
             type: 'reset'
         })
     }, [connector]);
+
+    const updateSession = useCallback((chainId?: number, activeIndex?: number ) => {
+        const newChainId = chainId || state.chainId
+        const newActiveIndex = activeIndex || state.activeIndex
+        const address = accounts[newActiveIndex]
+
+        if(connector) {
+            connector.updateSession({
+                chainId: newChainId,
+                accounts: [address]
+            })
+        }
+
+        await getAppControllers().wallet.update(newActiveIndex, newChainId)
+
+        dispatch({
+            type: 'updateSession',
+            chainId,
+            activeIndex
+        })
+
+    }, [connector])
+
+    const openRequest = async (request: any) => {
+        const payload = Object.assign({}, request);
+
+        const params = payload.params[0];
+        if (request.method === "eth_sendTransaction") {
+            payload.params[0] = await getAppControllers().wallet.populateTransaction(params);
+        }
+
+        dispatch({
+            type: 'openRequest',
+            payload
+        })
+    };
+
+    const closeRequest = useCallback(() => {
+        dispatch({
+            type: 'closeRequest'
+        })
+    }, []);
+
+    const rejectRequest = useCallback(() => {
+        if (connector) {
+            connector.rejectRequest({
+              id: payload.id,
+              error: { message: "Failed or Rejected Request" },
+            });
+          }
+
+          dispatch({
+            type: 'removeRequest'
+          })
+
+    }, [connector])
+
+    const approveRequest = useCallback(() => {
+        if (connector) {
+            connector.approveRequest({
+              id: payload.id,
+            });
+          }
+
+
+          dispatch({
+            type: 'removeRequest'
+          })
+    }, [connector])
     
     useEffect(() => {
         // setup event listeners when there is a wallet connect session
@@ -309,6 +407,11 @@ const wcReducer = (state: WCState, action: WCAction): WCState => {
         approveSession,
         rejectSession,
         killSession,
+        updateSession,
+        openRequest,
+        closeRequest,
+        rejectRequest,
+        approveRequest
     }
 }
 
