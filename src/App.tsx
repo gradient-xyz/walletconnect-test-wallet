@@ -11,10 +11,16 @@ import RequestDisplay from "./components/RequestDisplay";
 import RequestButton from "./components/RequestButton";
 import AccountDetails from "./components/AccountDetails";
 import QRCodeScanner, { IQRCodeValidateResponse } from "./components/QRCodeScanner";
-import { DEFAULT_CHAIN_ID, DEFAULT_ACTIVE_INDEX } from "./constants/default";
 import { getCachedSession } from "./helpers/utilities";
-import { getAppControllers } from "./controllers";
-import { getAppConfig } from "./config";
+
+
+import { Amplify } from 'aws-amplify';
+
+import { withAuthenticator } from '@aws-amplify/ui-react';
+import '@aws-amplify/ui-react/styles.css';
+
+import awsExports from './aws-exports';
+Amplify.configure(awsExports);
 
 const SContainer = styled.div`
   display: flex;
@@ -105,68 +111,14 @@ const SRequestButton = styled(RequestButton)`
   margin-bottom: 10px;
 `;
 
-export interface IAppState {
-  loading: boolean;
-  scanner: boolean;
-  connector: WalletConnect | null;
-  uri: string;
-  peerMeta: {
-    description: string;
-    url: string;
-    icons: string[];
-    name: string;
-    ssl: boolean;
-  };
-  connected: boolean;
-  chainId: number;
-  accounts: string[];
-  activeIndex: number;
-  address: string;
-  requests: any[];
-  results: any[];
-  payload: any;
-}
 
-export const DEFAULT_ACCOUNTS = getAppControllers().wallet.getAccounts();
-export const DEFAULT_ADDRESS = DEFAULT_ACCOUNTS[DEFAULT_ACTIVE_INDEX];
 
-export const INITIAL_STATE: IAppState = {
-  loading: false,
-  scanner: false,
-  connector: null,
-  uri: "",
-  peerMeta: {
-    description: "",
-    url: "",
-    icons: [],
-    name: "",
-    ssl: false,
-  },
-  connected: false,
-  chainId: getAppConfig().chainId || DEFAULT_CHAIN_ID,
-  accounts: DEFAULT_ACCOUNTS,
-  address: DEFAULT_ADDRESS,
-  activeIndex: DEFAULT_ACTIVE_INDEX,
-  requests: [],
-  results: [],
-  payload: null,
-};
+const App = () => {
+  
+  const state = INITIAL_STATE;
 
-class App extends React.Component<{}> {
-  public state: IAppState;
-
-  constructor(props: any) {
-    super(props);
-    this.state = {
-      ...INITIAL_STATE,
-    };
-  }
-  public componentDidMount() {
-    this.init();
-  }
-
-  public init = async () => {
-    let { activeIndex, chainId } = this.state;
+  const init = async () => {
+    let { activeIndex, chainId } = state;
 
     const session = getCachedSession();
 
@@ -184,7 +136,7 @@ class App extends React.Component<{}> {
 
       await getAppControllers().wallet.init(activeIndex, chainId);
 
-      await this.setState({
+      await setState({
         connected,
         connector,
         address,
@@ -194,145 +146,55 @@ class App extends React.Component<{}> {
         peerMeta,
       });
 
-      this.subscribeToEvents();
+      subscribeToEvents();
     }
-    await getAppConfig().events.init(this.state, this.bindedSetState);
+    await getAppConfig().events.init(state, bindedSetState);
   };
 
-  public bindedSetState = (newState: Partial<IAppState>) => this.setState(newState);
+  React.useEffect(() => {
+    init()
+  })
 
-  public initWalletConnect = async () => {
-    const { uri } = this.state;
+  const bindedSetState = (newState: Partial<IAppState>) => setState(newState);
 
-    this.setState({ loading: true });
 
-    try {
-      const connector = new WalletConnect({ uri });
 
-      if (!connector.connected) {
-        await connector.createSession();
-      }
-
-      await this.setState({
-        loading: false,
-        connector,
-        uri: connector.uri,
-      });
-
-      this.subscribeToEvents();
-    } catch (error) {
-      this.setState({ loading: false });
-
-      throw error;
-    }
-  };
-
-  public approveSession = () => {
+  const approveSession = () => {
     console.log("ACTION", "approveSession");
-    const { connector, chainId, address } = this.state;
+    const { connector, chainId, address } = state;
     if (connector) {
       connector.approveSession({ chainId, accounts: [address] });
     }
-    this.setState({ connector });
+    setState({ connector });
   };
 
-  public rejectSession = () => {
+  const rejectSession = () => {
     console.log("ACTION", "rejectSession");
-    const { connector } = this.state;
+    const { connector } = state;
     if (connector) {
       connector.rejectSession();
     }
-    this.setState({ connector });
+    setState({ connector });
   };
 
-  public killSession = () => {
+  const killSession = () => {
     console.log("ACTION", "killSession");
-    const { connector } = this.state;
+    const { connector } = state;
     if (connector) {
       connector.killSession();
     }
-    this.resetApp();
+    resetApp();
   };
 
-  public resetApp = async () => {
-    await this.setState({ ...INITIAL_STATE });
-    this.init();
+  const resetApp = async () => {
+    await setState({ ...INITIAL_STATE });
+    init();
   };
 
-  public subscribeToEvents = () => {
-    console.log("ACTION", "subscribeToEvents");
-    const { connector } = this.state;
+  
 
-    if (connector) {
-      connector.on("session_request", (error, payload) => {
-        console.log("EVENT", "session_request");
-
-        if (error) {
-          throw error;
-        }
-        console.log("SESSION_REQUEST", payload.params);
-        const { peerMeta } = payload.params[0];
-        this.setState({ peerMeta });
-      });
-
-      connector.on("session_update", error => {
-        console.log("EVENT", "session_update");
-
-        if (error) {
-          throw error;
-        }
-      });
-
-      connector.on("call_request", async (error, payload) => {
-        // tslint:disable-next-line
-        console.log("EVENT", "call_request", "method", payload.method);
-        console.log("EVENT", "call_request", "params", payload.params);
-
-        if (error) {
-          throw error;
-        }
-
-        await getAppConfig().rpcEngine.router(payload, this.state, this.bindedSetState);
-      });
-
-      connector.on("connect", (error, payload) => {
-        console.log("EVENT", "connect");
-
-        if (error) {
-          throw error;
-        }
-
-        this.setState({ connected: true });
-      });
-
-      connector.on("disconnect", (error, payload) => {
-        console.log("EVENT", "disconnect");
-
-        if (error) {
-          throw error;
-        }
-
-        this.resetApp();
-      });
-
-      if (connector.connected) {
-        const { chainId, accounts } = connector;
-        const index = 0;
-        const address = accounts[index];
-        getAppControllers().wallet.update(index, chainId);
-        this.setState({
-          connected: true,
-          address,
-          chainId,
-        });
-      }
-
-      this.setState({ connector });
-    }
-  };
-
-  public updateSession = async (sessionParams: { chainId?: number; activeIndex?: number }) => {
-    const { connector, chainId, accounts, activeIndex } = this.state;
+  const updateSession = async (sessionParams: { chainId?: number; activeIndex?: number }) => {
+    const { connector, chainId, accounts, activeIndex } = state;
     const newChainId = sessionParams.chainId || chainId;
     const newActiveIndex = sessionParams.activeIndex || activeIndex;
     const address = accounts[newActiveIndex];
@@ -342,7 +204,7 @@ class App extends React.Component<{}> {
         accounts: [address],
       });
     }
-    await this.setState({
+    await setState({
       connector,
       address,
       accounts,
@@ -350,23 +212,23 @@ class App extends React.Component<{}> {
       chainId: newChainId,
     });
     await getAppControllers().wallet.update(newActiveIndex, newChainId);
-    await getAppConfig().events.update(this.state, this.bindedSetState);
+    await getAppConfig().events.update(state, bindedSetState);
   };
 
-  public updateChain = async (chainId: number | string) => {
-    await this.updateSession({ chainId: Number(chainId) });
+  const updateChain = async (chainId: number | string) => {
+    await updateSession({ chainId: Number(chainId) });
   };
 
-  public updateAddress = async (activeIndex: number) => {
-    await this.updateSession({ activeIndex });
+  const updateAddress = async (activeIndex: number) => {
+    await updateSession({ activeIndex });
   };
 
-  public toggleScanner = () => {
+  const toggleScanner = () => {
     console.log("ACTION", "toggleScanner");
-    this.setState({ scanner: !this.state.scanner });
+    setState({ scanner: !state.scanner });
   };
 
-  public onQRCodeValidate = (data: string): IQRCodeValidateResponse => {
+  const onQRCodeValidate = (data: string): IQRCodeValidateResponse => {
     const res: IQRCodeValidateResponse = {
       error: null,
       result: null,
@@ -380,31 +242,31 @@ class App extends React.Component<{}> {
     return res;
   };
 
-  public onQRCodeScan = async (data: any) => {
+  const onQRCodeScan = async (data: any) => {
     const uri = typeof data === "string" ? data : "";
     if (uri) {
-      await this.setState({ uri });
-      await this.initWalletConnect();
-      this.toggleScanner();
+      await setState({ uri });
+      await initWalletConnect();
+      toggleScanner();
     }
   };
 
-  public onURIPaste = async (e: any) => {
+  const onURIPaste = async (e: any) => {
     const data = e.target.value;
     const uri = typeof data === "string" ? data : "";
     if (uri) {
-      await this.setState({ uri });
-      await this.initWalletConnect();
+      await setState({ uri });
+      await initWalletConnect();
     }
   };
 
-  public onQRCodeError = (error: Error) => {
+  const onQRCodeError = (error: Error) => {
     throw error;
   };
 
-  public onQRCodeClose = () => this.toggleScanner();
+  const onQRCodeClose = () => toggleScanner();
 
-  public openRequest = async (request: any) => {
+  const openRequest = async (request: any) => {
     const payload = Object.assign({}, request);
 
     const params = payload.params[0];
@@ -412,25 +274,25 @@ class App extends React.Component<{}> {
       payload.params[0] = await getAppControllers().wallet.populateTransaction(params);
     }
 
-    this.setState({
+    setState({
       payload,
     });
   };
 
-  public closeRequest = async () => {
-    const { requests, payload } = this.state;
+  const closeRequest = async () => {
+    const { requests, payload } = state;
     const filteredRequests = requests.filter(request => request.id !== payload.id);
-    await this.setState({
+    await setState({
       requests: filteredRequests,
       payload: null,
     });
   };
 
-  public approveRequest = async () => {
-    const { connector, payload } = this.state;
+  const approveRequest = async () => {
+    const { connector, payload } = state;
 
     try {
-      await getAppConfig().rpcEngine.signer(payload, this.state, this.bindedSetState);
+      await getAppConfig().rpcEngine.signer(payload, state, bindedSetState);
     } catch (error) {
       console.error(error);
       if (connector) {
@@ -441,23 +303,23 @@ class App extends React.Component<{}> {
       }
     }
 
-    this.closeRequest();
-    await this.setState({ connector });
+    closeRequest();
+    await setState({ connector });
   };
 
-  public rejectRequest = async () => {
-    const { connector, payload } = this.state;
+  const rejectRequest = async () => {
+    const { connector, payload } = state;
     if (connector) {
       connector.rejectRequest({
         id: payload.id,
         error: { message: "Failed or Rejected Request" },
       });
     }
-    await this.closeRequest();
-    await this.setState({ connector });
+    await closeRequest();
+    await setState({ connector });
   };
 
-  public render() {
+  const render() {
     const {
       peerMeta,
       scanner,
@@ -468,7 +330,7 @@ class App extends React.Component<{}> {
       chainId,
       requests,
       payload,
-    } = this.state;
+    } = state;
     return (
       <React.Fragment>
         <SContainer>
@@ -476,7 +338,7 @@ class App extends React.Component<{}> {
             connected={connected}
             address={address}
             chainId={chainId}
-            killSession={this.killSession}
+            killSession={killSession}
           />
           <SContent>
             <Card maxWidth={400}>
@@ -488,8 +350,8 @@ class App extends React.Component<{}> {
                   <Column>
                     <PeerMeta peerMeta={peerMeta} />
                     <SActions>
-                      <Button onClick={this.approveSession}>{`Approve`}</Button>
-                      <Button onClick={this.rejectSession}>{`Reject`}</Button>
+                      <Button onClick={approveSession}>{`Approve`}</Button>
+                      <Button onClick={rejectSession}>{`Reject`}</Button>
                     </SActions>
                   </Column>
                 ) : (
@@ -500,15 +362,15 @@ class App extends React.Component<{}> {
                       activeIndex={activeIndex}
                       chainId={chainId}
                       accounts={accounts}
-                      updateAddress={this.updateAddress}
-                      updateChain={this.updateChain}
+                      updateAddress={updateAddress}
+                      updateChain={updateChain}
                     />
                     <SActionsColumn>
-                      <SButton onClick={this.toggleScanner}>{`Scan`}</SButton>
+                      <SButton onClick={toggleScanner}>{`Scan`}</SButton>
                       {getAppConfig().styleOpts.showPasteUri && (
                         <>
                           <p>{"OR"}</p>
-                          <SInput onChange={this.onURIPaste} placeholder={"Paste wc: uri"} />
+                          <SInput onChange={onURIPaste} placeholder={"Paste wc: uri"} />
                         </>
                       )}
                     </SActionsColumn>
@@ -522,8 +384,8 @@ class App extends React.Component<{}> {
                     activeIndex={activeIndex}
                     chainId={chainId}
                     accounts={accounts}
-                    updateAddress={this.updateAddress}
-                    updateChain={this.updateChain}
+                    updateAddress={updateAddress}
+                    updateChain={updateChain}
                   />
                   {peerMeta && peerMeta.name && (
                     <>
@@ -537,7 +399,7 @@ class App extends React.Component<{}> {
                   <h6>{"Pending Call Requests"}</h6>
                   {requests.length ? (
                     requests.map(request => (
-                      <SRequestButton key={request.id} onClick={() => this.openRequest(request)}>
+                      <SRequestButton key={request.id} onClick={() => openRequest(request)}>
                         <div>{request.method}</div>
                       </SRequestButton>
                     ))
@@ -552,18 +414,18 @@ class App extends React.Component<{}> {
                   payload={payload}
                   peerMeta={peerMeta}
                   renderPayload={(payload: any) => getAppConfig().rpcEngine.render(payload)}
-                  approveRequest={this.approveRequest}
-                  rejectRequest={this.rejectRequest}
+                  approveRequest={approveRequest}
+                  rejectRequest={rejectRequest}
                 />
               )}
             </Card>
           </SContent>
           {scanner && (
             <QRCodeScanner
-              onValidate={this.onQRCodeValidate}
-              onScan={this.onQRCodeScan}
-              onError={this.onQRCodeError}
-              onClose={this.onQRCodeClose}
+              onValidate={onQRCodeValidate}
+              onScan={onQRCodeScan}
+              onError={onQRCodeError}
+              onClose={onQRCodeClose}
             />
           )}
         </SContainer>
@@ -575,4 +437,4 @@ class App extends React.Component<{}> {
   }
 }
 
-export default App;
+export default withAuthenticator(App);

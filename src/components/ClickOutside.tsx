@@ -1,52 +1,47 @@
-import * as React from "react";
-import * as PropTypes from "prop-types";
+import React, { useEffect, useState } from 'react';
 
 interface IClickOutsideProps {
   onClickOutside: (event: any) => void;
+  children: JSX.Element
 }
 
-class ClickOutside extends React.Component<IClickOutsideProps> {
-  public static propTypes = {
-    onClickOutside: PropTypes.func.isRequired,
-  };
+const ClickOutside: React.FC<IClickOutsideProps> = (props: IClickOutsideProps) => {
+  const {children, onClickOutside} = props;
 
-  private element: HTMLDivElement | null;
-  private isTouch = false;
+  const [element, setElement] = useState<HTMLDivElement | null>(null);
+  const [isTouch, setIsTouch] = useState(false);
 
-  public componentDidMount() {
-    document.addEventListener("touchend", this.handle, true);
-    document.addEventListener("click", this.handle, true);
-  }
-
-  public componentWillUnmount() {
-    document.removeEventListener("touchend", this.handle, true);
-    document.removeEventListener("click", this.handle, true);
-  }
-
-  public handle = (event: any) => {
+  function handle(event: any) {
     if (event.type === "touchend") {
-      this.isTouch = true;
+      setIsTouch(true);
     }
-    if (event.type === "click" && this.isTouch) {
+    if (event.type === "click" && isTouch) {
       return;
     }
-    const { onClickOutside } = this.props;
-    const element = this.element;
-    if (element) {
-      if (!element.contains(event.target)) {
+    const el = event.element || element
+    if (el) {
+      if (!el.contains(event.target)) {
         onClickOutside(event);
       }
+      setElement(el)
     }
   };
 
-  public render() {
-    const { children, onClickOutside, ...props } = this.props;
-    return (
-      <div {...props} ref={c => (this.element = c)}>
-        {children}
-      </div>
-    );
-  }
+  useEffect(() => {
+    document.addEventListener("touchend", handle, true);
+    document.addEventListener("click", handle, true);
+
+    return () => {
+      document.removeEventListener("touchend", handle, true);
+      document.removeEventListener("click", handle, true);
+    }
+  })
+
+  return (
+    <div {...props} ref={c => setElement(c)}>
+      {children}
+    </div>
+  );
 }
 
 export default ClickOutside;
