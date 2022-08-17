@@ -1,10 +1,11 @@
 import { signingMethods, convertHexToNumber } from "@walletconnect/utils";
 
-import { WCState } from "../context/walletConnectContext";
+import { WCAction, WCState } from "../context/walletConnectContext";
 import { apiGetCustomRequest } from "../helpers/api";
 import { convertHexToUtf8IfPossible } from "../helpers/utilities";
 import { IRequestRenderParams, IRpcEngine } from "../helpers/types";
 import { getAppControllers } from "../controllers";
+import { Dispatch } from "react";
 
 export function filterEthereumRequests(payload: any) {
   return (
@@ -105,16 +106,16 @@ export function renderEthereumRequests(payload: any): IRequestRenderParams[] {
   return params;
 }
 
-export async function signEthereumRequests(payload: any, state: WCState, setState: any) {
-  const { connector, address, activeIndex, chainId } = state;
+export async function signEthereumRequests(payload: any, state: WCState, dispatch: Dispatch<WCAction>) {
+  const { connector, address } = state;
 
   let errorMsg = "";
   let result = null;
 
   if (connector) {
-    if (!getAppControllers().wallet.isActive()) {
-      await getAppControllers().wallet.init(activeIndex, chainId);
-    }
+    // if (!getAppControllers().wallet.isActive()) {
+    //   await getAppControllers().wallet.init(activeIndex, chainId);
+    // }
 
     let transaction = null;
     let dataToSign = null;

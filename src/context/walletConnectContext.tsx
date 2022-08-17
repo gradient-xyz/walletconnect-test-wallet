@@ -57,7 +57,7 @@ const INITIAL_STATE: WCState = {
     payload: null,
 };
 
-type WCAction =
+export type WCAction =
     | {
         type: 'connect',
         connector: WalletConnect
@@ -421,16 +421,18 @@ const wcReducer = (state: WCState, action: WCAction): WCState => {
 
     }, [connector, payload])
 
-    const approveRequest = useCallback(() => {
-        if (connector) {
-            connector.approveRequest({
-              id: payload.id,
-            });
+    const approveRequest = useCallback(async () => {
+        try {
+            await getAppConfig().rpcEngine.signer(payload, state, dispatch);
+          } catch (error) {
+            console.error(error);
+            if (connector) {
+              connector.rejectRequest({
+                id: payload.id,
+                error: { message: "Failed or Rejected Request" },
+              });
+            }
           }
-
-          dispatch({
-            type: 'removeRequest'
-          })
     }, [connector, payload])
     
     // useEffect(() => {
