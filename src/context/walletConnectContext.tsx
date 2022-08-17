@@ -2,7 +2,7 @@ import React, { createContext, ReactChild, useCallback, useContext, useReducer, 
 import { getAppControllers } from "../controllers";
 import { getAppConfig } from "../config";
 
-import { DEFAULT_CHAIN_ID, DEFAULT_ACTIVE_INDEX } from "../constants/default";
+import { DEFAULT_CHAIN_ID } from "../constants/default";
 import WalletConnect from "@walletconnect/client";
 import { getCachedSession } from "src/helpers/utilities";
 import { IClientMeta } from "@walletconnect/types";
@@ -26,14 +26,11 @@ export interface WCState {
     chainId: number;
     accounts: string[];
     activeIndex: number;
-    address: string;
+    address?: string;
     requests: any[];
     results: any[];
     payload: any;
 }
-
-const DEFAULT_ACCOUNTS = getAppControllers().wallet.getAccounts();
-const DEFAULT_ADDRESS = DEFAULT_ACCOUNTS[DEFAULT_ACTIVE_INDEX];
 
 const INITIAL_STATE: WCState = {
     connect: null,
@@ -52,9 +49,9 @@ const INITIAL_STATE: WCState = {
     peerMeta: null,
     connected: false,
     chainId: getAppConfig().chainId || DEFAULT_CHAIN_ID,
-    accounts: DEFAULT_ACCOUNTS,
-    address: DEFAULT_ADDRESS,
-    activeIndex: DEFAULT_ACTIVE_INDEX,
+    accounts: [],
+    address: undefined,
+    activeIndex: -1,
     requests: [],
     results: [],
     payload: null,
@@ -108,11 +105,23 @@ type WCAction =
         type: 'callRequest',
         payload: any
     }
+    | {
+        type: 'accounts'
+        accounts: string[]
+    }
 
 const wcReducer = (state: WCState, action: WCAction): WCState => {
     switch(action.type) {
         case 'reset':
             return INITIAL_STATE
+
+        case 'accounts':
+            return {
+                ...state,
+                accounts: action.accounts,
+                address: action.accounts[0],
+                activeIndex: 0
+            }
 
         case 'sessionRequest':
             return {
@@ -281,6 +290,12 @@ const wcReducer = (state: WCState, action: WCAction): WCState => {
         // re-establsh session if there is an existing one
         const session = getCachedSession();
 
+        getAppControllers().wallet.getAccounts().then(accounts =>
+            dispatch({
+            type: 'accounts',
+            accounts
+        }))
+
         if (!session) {
             // TODO replace with API call to get wallets
             getAppControllers().wallet.init(activeIndex, chainId);
@@ -328,7 +343,7 @@ const wcReducer = (state: WCState, action: WCAction): WCState => {
     const approveSession = useCallback(() => {
         console.log("ACTION", "approveSession");
         if (connector) {
-          connector.approveSession({ chainId, accounts: [address] });
+          connector.approveSession({ chainId, accounts: [address!] });
         }
     }, [connector, chainId, address]);
 

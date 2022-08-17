@@ -57,33 +57,37 @@ const AccountDetails = (props: IAccountDetailsProps) => {
 
   const { user } = useAuthenticator((context) => [context.user]);
 
-  return (
-    <React.Fragment>
-      <SSection>
-        <h6>{"Account"} { user.username }</h6>
-        <SAddressDropdownWrapper>
-          <SBlockie size={40} address={address} />
+  if(address) {
+    return (
+      <React.Fragment>
+        <SSection>
+          <h6>{"Account"} { user.username }</h6>
+          <SAddressDropdownWrapper>
+            <SBlockie size={40} address={address} />
+            <Dropdown
+              monospace
+              selected={activeIndex}
+              options={accountsMap}
+              displayKey={"display_address"}
+              targetKey={"index"}
+              onChange={updateAddress}
+            />
+          </SAddressDropdownWrapper>
+        </SSection>
+        <SSection>
+          <h6>{"Network"}</h6>
           <Dropdown
-            monospace
-            selected={activeIndex}
-            options={accountsMap}
-            displayKey={"display_address"}
-            targetKey={"index"}
-            onChange={updateAddress}
+            selected={chainId}
+            options={chains}
+            displayKey={"name"}
+            targetKey={"chain_id"}
+            onChange={updateChain}
           />
-        </SAddressDropdownWrapper>
-      </SSection>
-      <SSection>
-        <h6>{"Network"}</h6>
-        <Dropdown
-          selected={chainId}
-          options={chains}
-          displayKey={"name"}
-          targetKey={"chain_id"}
-          onChange={updateChain}
-        />
-      </SSection>
-    </React.Fragment>
-  );
+        </SSection>
+      </React.Fragment>
+    );
+  } else {
+    return (<></>)
+  }
 };
 export default AccountDetails;

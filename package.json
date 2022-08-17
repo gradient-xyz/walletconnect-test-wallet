@@ -27,9 +27,11 @@
   },
   "dependencies": {
     "@aws-amplify/ui-react": "^3.4.0",
+    "@rumblefishdev/eth-signer-kms": "^2.1.0",
     "@walletconnect/client": "^1.7.8",
     "@walletconnect/utils": "^1.7.8",
     "aws-amplify": "^4.3.30",
+    "aws-sdk": "^2.1197.0",
     "axios": "^0.21.1",
     "bignumber.js": "^9.0.1",
     "blockies-ts": "^1.0.0",
