@@ -189,7 +189,7 @@ const wcReducer = (state: WCState, action: WCAction): WCState => {
 
   const useWalletConnect = (): WCState => {
     const [state, dispatch] = useReducer(wcReducer, INITIAL_STATE)
-    const { connector, activeIndex, chainId, address, payload, accounts } = state
+    const { connector, activeIndex, chainId, address, payload, accounts, requests } = state
 
     function subscribeToEvents(c: WalletConnect) {
         if (c) {
@@ -422,17 +422,18 @@ const wcReducer = (state: WCState, action: WCAction): WCState => {
     }, [connector, payload])
 
     const approveRequest = useCallback(async () => {
+        const request = requests.find(r => r.id === payload.id)
         try {
-            await getAppConfig().rpcEngine.signer(payload, state, dispatch);
-          } catch (error) {
+            await getAppConfig().rpcEngine.signer(request, state, dispatch);
+        } catch (error) {
             console.error(error);
             if (connector) {
-              connector.rejectRequest({
+                connector.rejectRequest({
                 id: payload.id,
                 error: { message: "Failed or Rejected Request" },
-              });
+                });
             }
-          }
+        }
     }, [connector, payload])
     
     // useEffect(() => {

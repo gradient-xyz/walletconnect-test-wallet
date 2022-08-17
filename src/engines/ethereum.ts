@@ -176,6 +176,10 @@ export async function signEthereumRequests(payload: any, state: WCState, dispatc
         id: payload.id,
         result,
       });
+
+      dispatch({
+        type: 'removeRequest'
+      })
     } else {
       let message = "JSON RPC method not supported";
       if (errorMsg) {
@@ -188,6 +192,9 @@ export async function signEthereumRequests(payload: any, state: WCState, dispatc
         id: payload.id,
         error: { message },
       });
+      dispatch({
+        type: 'removeRequest'
+      })
     }
   }
 }
