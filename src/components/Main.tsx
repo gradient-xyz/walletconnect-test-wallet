@@ -141,79 +141,79 @@ export const Main = () => {
 
     const ConnectionSection = () => {
         if (connected) {
-            return (<PeerDataCol/>)
+            return (<PeerDataCol />)
         } else {
             return (
-<Column>
-                            <AccountDetails
-                                chains={getAppConfig().chains}
-                            />
-                            <SActionsColumn>
-                                <SButton onClick={toggleScanner}>{`Scan`}</SButton>
-                                {getAppConfig().styleOpts.showPasteUri && (
-                                    <>
-                                        <p>{"OR"}</p>
-                                        <SInput onChange={onURIPaste} placeholder={"Paste wc: uri"} />
-                                    </>
-                                )}
-                            </SActionsColumn>
-                        </Column>
+                <Column>
+                    <AccountDetails
+                        chains={getAppConfig().chains}
+                    />
+                    <SActionsColumn>
+                        <SButton onClick={toggleScanner}>{`Scan`}</SButton>
+                        {getAppConfig().styleOpts.showPasteUri && (
+                            <>
+                                <p>{"OR"}</p>
+                                <SInput onChange={onURIPaste} placeholder={"Paste wc: uri"} />
+                            </>
+                        )}
+                    </SActionsColumn>
+                </Column>
             )
         }
     }
 
     const RequestSection = () => {
-        if(payload) {
+        if (payload) {
             return (
-<RequestDisplay
-                        payload={payload}
-                        peerMeta={peerMeta}
-                        renderPayload={(payload: any) => getAppConfig().rpcEngine.render(payload)}
-                        approveRequest={approveRequest}
-                        rejectRequest={rejectRequest}
-                    />
+                <RequestDisplay
+                    payload={payload}
+                    peerMeta={peerMeta}
+                    renderPayload={(payload: any) => getAppConfig().rpcEngine.render(payload)}
+                    approveRequest={approveRequest}
+                    rejectRequest={rejectRequest}
+                />
             )
         } else {
             return (
                 <Column>
-                        <AccountDetails
-                            chains={getAppConfig().chains}
-                        />
-                        {peerMeta && peerMeta.name && (
-                            <>
-                                <h6>{"Connected to"}</h6>
-                                <SConnectedPeer>
-                                    <img src={peerMeta.icons[0]} alt={peerMeta.name} />
-                                    <div>{peerMeta.name}</div>
-                                </SConnectedPeer>
-                            </>
-                        )}
-                        <h6>{"Pending Call Requests"}</h6>
-                        {requests.length ? (
-                            requests.map(request => (
-                                <SRequestButton key={request.id} onClick={() => openRequest!(request)}>
-                                    <div>{request.method}</div>
-                                </SRequestButton>
-                            ))
-                        ) : (
-                            <div>
-                                <div>{"No pending requests"}</div>
-                            </div>
-                        )}
-                    </Column>
+                    <AccountDetails
+                        chains={getAppConfig().chains}
+                    />
+                    {peerMeta && peerMeta.name && (
+                        <>
+                            <h6>{"Connected to"}</h6>
+                            <SConnectedPeer>
+                                <img src={peerMeta.icons[0]} alt={peerMeta.name} />
+                                <div>{peerMeta.name}</div>
+                            </SConnectedPeer>
+                        </>
+                    )}
+                    <h6>{"Pending Call Requests"}</h6>
+                    {requests.length ? (
+                        requests.map(request => (
+                            <SRequestButton key={request.id} onClick={() => openRequest!(request)}>
+                                <div>{request.method}</div>
+                            </SRequestButton>
+                        ))
+                    ) : (
+                        <div>
+                            <div>{"No pending requests"}</div>
+                        </div>
+                    )}
+                </Column>
             )
         }
     }
 
     return (
         <SContainer>
-            <Header/>
+            <Header />
             <SContent>
                 <Card maxWidth={400}>
                     <SLogo>
                         <img src={getAppConfig().logo} alt={getAppConfig().name} />
                     </SLogo>
-                    <ConnectionSection/>
+                    <ConnectionSection />
                     <RequestSection />
                 </Card>
             </SContent>

@@ -23,12 +23,13 @@ Amplify.configure({
   oauth: {
     domain: 'bryan-test.auth.us-west-2.amazoncognito.com',
     scope: [
-      'email',
-      'aws.cognito.signin.user.admin'
+      "profile",
+      "email",
+      "openid"
     ],
     redirectSignIn: 'http://localhost:3000/',
     redirectSignOut: 'http://localhost:3000/',
-    clientId: '1g0nnr4h99a3sd0vfs9',
+    clientId: '48fars57hcget42e3pq5c0nccb',
     responseType: 'code' // or 'token', note that REFRESH token will only be generated when the responseType is code
   }
 });
@@ -41,6 +42,43 @@ const SVersionNumber = styled.div`
   opacity: 0.3;
   transform: rotate(-90deg);
 `;
+
+import { Hub, Logger } from 'aws-amplify';
+
+const logger = new Logger('My-Logger');
+
+const listener = (data: any) => {
+    switch (data.payload.event) {
+        case 'signIn':
+            logger.info('user signed in', data);
+            break;
+        case 'signUp':
+            logger.info('user signed up', data);
+            break;
+        case 'signOut':
+            logger.info('user signed out', data);
+            break;
+        case 'signIn_failure':
+            logger.error('user sign in failed', data);
+            break;
+        case 'tokenRefresh':
+            logger.info('token refresh succeeded', data);
+            break;
+        case 'tokenRefresh_failure':
+            logger.error('token refresh failed', data);
+            break;
+        case 'autoSignIn':
+            logger.info('Auto Sign In after Sign Up succeeded', data);
+            break;
+        case 'autoSignIn_failure':
+            logger.error('Auto Sign In after Sign Up failed', data);
+            break;
+        case 'configured':
+            logger.info('the Auth module is configured', data);
+    }
+}
+
+Hub.listen('auth', listener);
 
 
 const App = () => {

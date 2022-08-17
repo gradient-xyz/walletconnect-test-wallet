@@ -1,3 +1,4 @@
+import { useAuthenticator } from "@aws-amplify/ui-react";
 import * as React from "react";
 import { useWalletConnectContext } from "src/context/walletConnectContext";
 import styled from "styled-components";
@@ -54,10 +55,12 @@ const AccountDetails = (props: IAccountDetailsProps) => {
     }
   }
 
+  const { user } = useAuthenticator((context) => [context.user]);
+
   return (
     <React.Fragment>
       <SSection>
-        <h6>{"Account"}</h6>
+        <h6>{"Account"} { user.username }</h6>
         <SAddressDropdownWrapper>
           <SBlockie size={40} address={address} />
           <Dropdown
