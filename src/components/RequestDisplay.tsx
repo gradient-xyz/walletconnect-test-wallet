@@ -46,6 +46,7 @@ class RequestDisplay extends React.Component<any, any> {
     console.log("RENDER", "method", payload.method);
     console.log("RENDER", "params", payload.params);
     console.log("RENDER", "formatted", params);
+    console.log("RENDER", peerMeta)
     return (
       <Column>
         <h6>{"Request From"}</h6>

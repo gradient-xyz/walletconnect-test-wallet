@@ -95,7 +95,10 @@ const SRequestButton = styled(RequestButton)`
 
 export const Main = () => {
 
-    const { connected, requests, peerMeta, payload, connect, openRequest, approveRequest, rejectRequest } = useWalletConnectContext();
+    const { 
+        connected, requests, peerMeta, payload,
+        connect, openRequest, approveRequest, rejectRequest 
+    } = useWalletConnectContext();
 
     const [scanner, setScanner] = React.useState(false)
     const toggleScanner = () => {
@@ -128,8 +131,10 @@ export const Main = () => {
     const onURIPaste = async (e: any) => {
         const data = e.target.value;
         const uri = typeof data === "string" ? data : "";
-        if (uri) {
-            await connect!(uri)
+        if (uri && connect) {
+            await connect(uri)
+        } else {
+            console.log('wc not initialized')
         }
     };
 
@@ -140,7 +145,7 @@ export const Main = () => {
     const onQRCodeClose = () => toggleScanner();
 
     const ConnectionSection = () => {
-        if (connected) {
+        if (peerMeta) {
             return (<PeerDataCol />)
         } else {
             return (
@@ -163,45 +168,49 @@ export const Main = () => {
     }
 
     const RequestSection = () => {
-        if (payload) {
-            return (
-                <RequestDisplay
-                    payload={payload}
-                    peerMeta={peerMeta}
-                    renderPayload={(payload: any) => getAppConfig().rpcEngine.render(payload)}
-                    approveRequest={approveRequest}
-                    rejectRequest={rejectRequest}
-                />
-            )
-        } else {
-            return (
-                <Column>
-                    <AccountDetails
-                        chains={getAppConfig().chains}
+        if (connected) {
+            if (payload) {
+                return (
+                    <RequestDisplay
+                        payload={payload}
+                        peerMeta={peerMeta}
+                        renderPayload={(payload: any) => getAppConfig().rpcEngine.render(payload)}
+                        approveRequest={approveRequest}
+                        rejectRequest={rejectRequest}
                     />
-                    {peerMeta && peerMeta.name && (
-                        <>
-                            <h6>{"Connected to"}</h6>
-                            <SConnectedPeer>
-                                <img src={peerMeta.icons[0]} alt={peerMeta.name} />
-                                <div>{peerMeta.name}</div>
-                            </SConnectedPeer>
-                        </>
-                    )}
-                    <h6>{"Pending Call Requests"}</h6>
-                    {requests.length ? (
-                        requests.map(request => (
-                            <SRequestButton key={request.id} onClick={() => openRequest!(request)}>
-                                <div>{request.method}</div>
-                            </SRequestButton>
-                        ))
-                    ) : (
-                        <div>
-                            <div>{"No pending requests"}</div>
-                        </div>
-                    )}
-                </Column>
-            )
+                )
+            } else {
+                return (
+                    <Column>
+                        <AccountDetails
+                            chains={getAppConfig().chains}
+                        />
+                        {peerMeta && peerMeta.name && (
+                            <>
+                                <h6>{"Connected to"}</h6>
+                                <SConnectedPeer>
+                                    <img src={peerMeta.icons[0]} alt={peerMeta.name} />
+                                    <div>{peerMeta.name}</div>
+                                </SConnectedPeer>
+                            </>
+                        )}
+                        <h6>{"Pending Call Requests"}</h6>
+                        {requests.length ? (
+                            requests.map(request => (
+                                <SRequestButton key={request.id} onClick={() => openRequest!(request)}>
+                                    <div>{request.method}</div>
+                                </SRequestButton>
+                            ))
+                        ) : (
+                            <div>
+                                <div>{"No pending requests"}</div>
+                            </div>
+                        )}
+                    </Column>
+                )
+            }
+        } else {
+            return (<></>)
         }
     }
 

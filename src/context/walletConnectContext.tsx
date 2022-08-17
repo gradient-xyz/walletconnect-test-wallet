@@ -1,4 +1,4 @@
-import React, { createContext, ReactChild, useCallback, useContext, useEffect, useReducer } from "react";
+import React, { createContext, ReactChild, useCallback, useContext, useReducer, useEffect } from "react";
 import { getAppControllers } from "../controllers";
 import { getAppConfig } from "../config";
 
@@ -49,12 +49,7 @@ const INITIAL_STATE: WCState = {
     loading: false,
     connector: null,
     uri: "",
-    peerMeta: {
-        description: "",
-        url: "",
-        icons: [],
-        name: "",
-    },
+    peerMeta: null,
     connected: false,
     chainId: getAppConfig().chainId || DEFAULT_CHAIN_ID,
     accounts: DEFAULT_ACCOUNTS,
@@ -106,7 +101,8 @@ type WCAction =
         type: 'reset'
     }
     | {
-        type: 'connected'
+        type: 'connected',
+        connector: WalletConnect
     }
     | {
         type: 'callRequest',
@@ -118,10 +114,18 @@ const wcReducer = (state: WCState, action: WCAction): WCState => {
         case 'reset':
             return INITIAL_STATE
 
+        case 'sessionRequest':
+            return {
+                ...state,
+                peerMeta: action.peerMeta
+            }
+
         case 'connected':
             return {
                 ...state,
-                connected: state.connector?.connected || false
+                connected: true,
+                connector: action.connector,
+                peerMeta: action.connector.peerMeta,
             }
 
         case 'updateSession':
@@ -137,9 +141,8 @@ const wcReducer = (state: WCState, action: WCAction): WCState => {
                 ...state,
                 uri: action.connector.uri,
                 connector: action.connector,
-                connected: action.connector.connected,
+                connected: false,
                 peerMeta: action.connector.peerMeta,
-                loading: false
             }
 
         case 'openRequest':
@@ -165,16 +168,114 @@ const wcReducer = (state: WCState, action: WCAction): WCState => {
 
         case 'callRequest':
             state.requests.push(action.payload)
-            return state
+            return {
+                ...state,
+                requests: state.requests
+            }
 
         default:
-            throw new Error('unhandled type in reducer ' + action)
+            throw new Error('unhandled type in reducer ' + action.type)
     }
 }
 
   const useWalletConnect = (): WCState => {
     const [state, dispatch] = useReducer(wcReducer, INITIAL_STATE)
-    const { connector, connected, activeIndex, chainId, address, payload, accounts } = state
+    const { connector, activeIndex, chainId, address, payload, accounts } = state
+
+    function subscribeToEvents(c: WalletConnect) {
+        if (c) {
+            console.log("ACTION", "subscribeToEvents");
+            const handleSessionRequest = (error: any, payload: any) => {
+                console.log("EVENT", "session_request");
+
+                if (error) {
+                    throw error;
+                }
+                console.log("SESSION_REQUEST", payload.params);
+                const { peerMeta } = payload.params[0];
+                dispatch({
+                    type: 'sessionRequest',
+                    peerMeta
+                })
+            }
+            c.on("session_request", handleSessionRequest);
+
+            const handleSessionUpdate = (error: any) => {
+                console.log("EVENT", "session_update");
+
+                if (error) {
+                    throw error;
+                }
+            }
+
+            c.on("session_update", handleSessionUpdate);
+
+            const handleCallRequest = async (error: any, payload: any) => {
+                // tslint:disable-next-line
+                console.log("EVENT", "call_request", "method", payload.method);
+                console.log("EVENT", "call_request", "params", payload.params);
+
+                if (error) {
+                    throw error;
+                }
+
+                dispatch({
+                    type: 'callRequest',
+                    payload,
+                })
+
+                // await getAppConfig().rpcEngine.router(payload, state, bindedSetState);
+            }
+            c.on("call_request", handleCallRequest);
+
+            const handleConnect = (error: any, payload: any) => {
+                console.log("EVENT", "connect");
+
+                if (error) {
+                    throw error;
+                }
+
+                dispatch({
+                    type: 'connected',
+                    connector: c
+                })
+            }
+            c.on("connect", handleConnect);
+
+            const handleDisconnect = (error: any, payload: any) => {
+                console.log("EVENT", "disconnect");
+
+                if (error) {
+                    throw error;
+                }
+
+                dispatch({
+                    type: 'reset'
+                })
+            }
+            c.on("disconnect", handleDisconnect);
+
+            //   if (connector.connected) {
+            //     const { chainId, accounts } = connector;
+            //     const index = 0;
+            //     const address = accounts[index];
+            //     getAppControllers().wallet.update(index, chainId);
+            //     setState({
+            //       connected: true,
+            //       address,
+            //       chainId,
+            //     });
+            //   }
+
+            // return () => {
+            //     connector.off("session_request")
+            //     connector.off("session_update")
+            //     connector.off("call_request")
+            //     connector.off("connect")
+            //     connector.off("disconnect")
+            // }
+        }
+    }
 
     useEffect(() => {
         // re-establsh session if there is an existing one
@@ -183,8 +284,9 @@ const wcReducer = (state: WCState, action: WCAction): WCState => {
         if (!session) {
             // TODO replace with API call to get wallets
             getAppControllers().wallet.init(activeIndex, chainId);
-        } else {
+        } else if(!connector) {
             const connector = new WalletConnect({ session });
+            subscribeToEvents(connector)
 
             const { accounts } = connector;
 
@@ -194,25 +296,20 @@ const wcReducer = (state: WCState, action: WCAction): WCState => {
             const chainId = connector.chainId;
 
             dispatch({
-                type: 'connect',
+                type: 'connected',
                 connector
-            })
-
-            dispatch({
-                type: 'updateSession',
-                activeIndex,
-                chainId
             })
 
             getAppControllers().wallet.init(activeIndex, chainId);
         }
-    })
+    }, [connector])
 
     const connect = useCallback(async (uri: string) => {
-        // setState({ loading: true });
+        console.log("ACTION", "connect", uri);
 
         try {
           const connector = new WalletConnect({ uri });
+          subscribeToEvents(connector)
     
           if (!connector.connected) {
             await connector.createSession();
@@ -222,9 +319,7 @@ const wcReducer = (state: WCState, action: WCAction): WCState => {
             type: 'connect',
             connector
           })
-
         } catch (error) {
-        //   setState({ loading: false });
     
           throw error;
         }
@@ -232,7 +327,6 @@ const wcReducer = (state: WCState, action: WCAction): WCState => {
 
     const approveSession = useCallback(() => {
         console.log("ACTION", "approveSession");
-        const { connector, chainId, address } = state;
         if (connector) {
           connector.approveSession({ chainId, accounts: [address] });
         }
@@ -240,7 +334,6 @@ const wcReducer = (state: WCState, action: WCAction): WCState => {
 
     const rejectSession = useCallback(() => {
         console.log("ACTION", "rejectSession");
-        const { connector } = state;
         if (connector) {
           connector.rejectSession();
           dispatch({
@@ -251,14 +344,9 @@ const wcReducer = (state: WCState, action: WCAction): WCState => {
 
     const killSession = useCallback(() => {
         console.log("ACTION", "killSession");
-        const { connector } = state;
         if (connector) {
           connector.killSession();
         }
-
-        dispatch({
-            type: 'reset'
-        })
     }, [connector]);
 
     const updateSession = useCallback((chainId?: number, activeIndex?: number ) => {
@@ -285,6 +373,7 @@ const wcReducer = (state: WCState, action: WCAction): WCState => {
 
     const openRequest = async (request: any) => {
         const payload = Object.assign({}, request);
+        console.log("ACTION", "openRequest", payload)
 
         const params = payload.params[0];
         if (request.method === "eth_sendTransaction") {
@@ -315,7 +404,7 @@ const wcReducer = (state: WCState, action: WCAction): WCState => {
             type: 'removeRequest'
           })
 
-    }, [connector])
+    }, [connector, payload])
 
     const approveRequest = useCallback(() => {
         if (connector) {
@@ -327,105 +416,16 @@ const wcReducer = (state: WCState, action: WCAction): WCState => {
           dispatch({
             type: 'removeRequest'
           })
-    }, [connector])
+    }, [connector, payload])
     
-    useEffect(() => {
-        // setup event listeners when there is a wallet connect session
+    // useEffect(() => {
+    //     // setup event listeners when there is a wallet connect session
+    //     // subscribeToEvents(connector)
 
-        if (connector) {
-            console.log("ACTION", "subscribeToEvents");
-            const handleSessionRequest = (error: any, payload: any) => {
-                console.log("EVENT", "session_request");
-
-                if (error) {
-                    throw error;
-                }
-                console.log("SESSION_REQUEST", payload.params);
-                const { peerMeta } = payload.params[0];
-                dispatch({
-                    type: 'sessionRequest',
-                    peerMeta
-                })
-            }
-            connector.on("session_request", handleSessionRequest);
-
-            const handleSessionUpdate = (error: any) => {
-                console.log("EVENT", "session_update");
-
-                if (error) {
-                    throw error;
-                }
-            }
-
-            connector.on("session_update", handleSessionUpdate);
-
-            const handleCallRequest = async (error: any, payload: any) => {
-                // tslint:disable-next-line
-                console.log("EVENT", "call_request", "method", payload.method);
-                console.log("EVENT", "call_request", "params", payload.params);
-
-                if (error) {
-                    throw error;
-                }
-
-                dispatch({
-                    type: 'callRequest',
-                    payload,
-                })
-
-                // await getAppConfig().rpcEngine.router(payload, state, bindedSetState);
-            }
-            connector.on("call_request", handleCallRequest);
-
-            const handleConnect = (error: any, payload: any) => {
-                console.log("EVENT", "connect");
-
-                if (error) {
-                    throw error;
-                }
-
-                dispatch({
-                    type: 'connected'
-                })
-            }
-            connector.on("connect", handleConnect);
-
-            const handleDisconnect = (error: any, payload: any) => {
-                console.log("EVENT", "disconnect");
-
-                if (error) {
-                    throw error;
-                }
-
-                dispatch({
-                    type: 'reset'
-                })
-            }
-            connector.on("disconnect", handleDisconnect);
-
-            //   if (connector.connected) {
-            //     const { chainId, accounts } = connector;
-            //     const index = 0;
-            //     const address = accounts[index];
-            //     getAppControllers().wallet.update(index, chainId);
-            //     setState({
-            //       connected: true,
-            //       address,
-            //       chainId,
-            //     });
-            //   }
-
-            return () => {
-                connector.off("session_request")
-                connector.off("session_update")
-                connector.off("call_request")
-                connector.off("connect")
-                connector.off("disconnect")
-            }
-        } else {
-            return () => null
-        }
-    }, [connector, connected])
+    //     //  else {
+    //     //     // return () => null
+    //     // }
+    // }, [connector, connected])
 
     return {
         ...state,
