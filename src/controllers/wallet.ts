@@ -107,6 +107,30 @@ export class WalletController {
     return tx;
   }
 
+  public async formatTransaction(transaction: any) {
+    let tx = Object.assign({}, transaction);
+    if (this.wallet) {
+      if (tx.gas) {
+        tx.gasLimit = tx.gas;
+        delete tx.gas;
+      }
+      if (tx.from) {
+        tx.from = ethers.utils.getAddress(tx.from);
+      }
+
+      try {
+        tx = await this.wallet.populateTransaction(tx);
+        tx.gasLimit = ethers.BigNumber.from(tx.gasLimit);
+        tx.gasPrice = ethers.BigNumber.from(tx.gasPrice);
+        tx.nonce = ethers.BigNumber.from(tx.nonce);
+      } catch (err) {
+        console.error("Error populating transaction", tx, err);
+      }
+    }
+
+    return tx;
+  }
+
   public async sendTransaction(transaction: any) {
     if (this.wallet) {
       const address = await this.wallet.getAddress()
@@ -127,7 +151,10 @@ export class WalletController {
         delete transaction.gas;
       }
 
-      const result = await this.wallet.sendTransaction(transaction);
+      delete transaction.gasPrice
+      const txn = await this.wallet.populateTransaction(transaction)
+
+      const result = await this.wallet.sendTransaction(txn);
       return result.hash;
     } else {
       console.error("No Active Account");
@@ -141,8 +168,11 @@ export class WalletController {
         delete data.from;
       }
       data.gasLimit = data.gas;
+      data.maxFeePerGas = 0
       delete data.gas;
-      const result = await this.wallet.signTransaction(data);
+      delete data.gasPrice
+      const txn = await this.wallet.populateTransaction(data)
+      const result = await this.wallet.signTransaction(txn);
       return result;
     } else {
       console.error("No Active Account");
