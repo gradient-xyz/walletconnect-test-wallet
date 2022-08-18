@@ -1,9 +1,9 @@
 import * as React from "react";
-import { Amplify} from 'aws-amplify';
-import styled from "styled-components"
+import { Amplify, Hub, Logger } from "aws-amplify";
+import styled from "styled-components";
 
 // import { withAuthenticator } from '@aws-amplify/ui-react';
-import '@aws-amplify/ui-react/styles.css';
+import "@aws-amplify/ui-react/styles.css";
 // import { CognitoHostedUIIdentityProvider, CognitoUser } from '@aws-amplify/auth';
 
 import { Web3ContextProvider } from "./context/walletConnectContext";
@@ -13,25 +13,20 @@ import { getAppConfig } from "./config";
 import { Authenticator } from "@aws-amplify/ui-react";
 
 Amplify.configure({
-  aws_cognito_region: 'us-west-2', // (required) - Region where Amazon Cognito project was created
-  aws_user_pools_id: 'us-west-2_aROxhrnRw', // (optional) -  Amazon Cognito User Pool ID
-  aws_user_pools_web_client_id: '48fars57hcget42e3pq5c0nccb', // (optional) - Amazon Cognito App Client ID (App client secret needs to be disabled)
-  aws_cognito_identity_pool_id:
-    'us-west-2:956b16c0-a11e-4b1f-8468-813e145590ea', // (optional) - Amazon Cognito Identity Pool ID
-  aws_mandatory_sign_in: 'enable', // (optional) - Users are not allowed to get the aws credentials unless they are signed in
+  aws_cognito_region: "us-west-2", // (required) - Region where Amazon Cognito project was created
+  aws_user_pools_id: "us-west-2_aROxhrnRw", // (optional) -  Amazon Cognito User Pool ID
+  aws_user_pools_web_client_id: "48fars57hcget42e3pq5c0nccb", // (optional) - Amazon Cognito App Client ID (App client secret needs to be disabled)
+  aws_cognito_identity_pool_id: "us-west-2:956b16c0-a11e-4b1f-8468-813e145590ea", // (optional) - Amazon Cognito Identity Pool ID
+  aws_mandatory_sign_in: "enable", // (optional) - Users are not allowed to get the aws credentials unless they are signed in
 
   oauth: {
-    domain: 'bryan-test.auth.us-west-2.amazoncognito.com',
-    scope: [
-      "profile",
-      "email",
-      "openid"
-    ],
-    redirectSignIn: 'http://localhost:3000/',
-    redirectSignOut: 'http://localhost:3000/',
-    clientId: '48fars57hcget42e3pq5c0nccb',
-    responseType: 'code' // or 'token', note that REFRESH token will only be generated when the responseType is code
-  }
+    domain: "bryan-test.auth.us-west-2.amazoncognito.com",
+    scope: ["profile", "email", "openid"],
+    redirectSignIn: "http://localhost:3000/",
+    redirectSignOut: "http://localhost:3000/",
+    clientId: "48fars57hcget42e3pq5c0nccb",
+    responseType: "code", // or 'token', note that REFRESH token will only be generated when the responseType is code
+  },
 });
 
 const SVersionNumber = styled.div`
@@ -43,48 +38,42 @@ const SVersionNumber = styled.div`
   transform: rotate(-90deg);
 `;
 
-import { Hub, Logger } from 'aws-amplify';
-
-const logger = new Logger('My-Logger');
+const logger = new Logger("My-Logger");
 
 const listener = (data: any) => {
-    switch (data.payload.event) {
-        case 'signIn':
-            logger.info('user signed in', data);
-            break;
-        case 'signUp':
-            logger.info('user signed up', data);
-            break;
-        case 'signOut':
-            logger.info('user signed out', data);
-            break;
-        case 'signIn_failure':
-            logger.error('user sign in failed', data);
-            break;
-        case 'tokenRefresh':
-            logger.info('token refresh succeeded', data);
-            break;
-        case 'tokenRefresh_failure':
-            logger.error('token refresh failed', data);
-            break;
-        case 'autoSignIn':
-            logger.info('Auto Sign In after Sign Up succeeded', data);
-            break;
-        case 'autoSignIn_failure':
-            logger.error('Auto Sign In after Sign Up failed', data);
-            break;
-        case 'configured':
-            logger.info('the Auth module is configured', data);
-    }
-}
+  switch (data.payload.event) {
+    case "signIn":
+      logger.info("user signed in", data);
+      break;
+    case "signUp":
+      logger.info("user signed up", data);
+      break;
+    case "signOut":
+      logger.info("user signed out", data);
+      break;
+    case "signIn_failure":
+      logger.error("user sign in failed", data);
+      break;
+    case "tokenRefresh":
+      logger.info("token refresh succeeded", data);
+      break;
+    case "tokenRefresh_failure":
+      logger.error("token refresh failed", data);
+      break;
+    case "autoSignIn":
+      logger.info("Auto Sign In after Sign Up succeeded", data);
+      break;
+    case "autoSignIn_failure":
+      logger.error("Auto Sign In after Sign Up failed", data);
+      break;
+    case "configured":
+      logger.info("the Auth module is configured", data);
+  }
+};
 
-Hub.listen('auth', listener);
-
+Hub.listen("auth", listener);
 
 const App = () => {
-
-  
-
   // const updateSession = async (sessionParams: { chainId?: number; activeIndex?: number }) => {
   //   const { connector, chainId, accounts, activeIndex } = state;
   //   const newChainId = sessionParams.chainId || chainId;
@@ -114,8 +103,6 @@ const App = () => {
   // const updateAddress = async (activeIndex: number) => {
   //   await updateSession({ activeIndex });
   // };
-
-  
 
   // const openRequest = async (request: any) => {
   //   const payload = Object.assign({}, request);
@@ -194,21 +181,18 @@ const App = () => {
   //   return unsubscribe;
   // }, []);
 
-
   return (
     <React.Fragment>
-      <Authenticator socialProviders={['google']}>
-      <Web3ContextProvider>
-        <Main />
-      </Web3ContextProvider>
+      <Authenticator socialProviders={["google"]}>
+        <Web3ContextProvider>
+          <Main />
+        </Web3ContextProvider>
       </Authenticator>
       {getAppConfig().styleOpts.showVersion && (
         <SVersionNumber>{`v${process.env.REACT_APP_VERSION}`} </SVersionNumber>
       )}
-      
     </React.Fragment>
   );
-  
-}
+};
 
 export default App;

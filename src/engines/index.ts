@@ -1,5 +1,5 @@
-import { IRpcEngine } from "../helpers/types";
 import { WCState } from "../context/walletConnectContext";
+import { IRpcEngine } from "../helpers/types";
 import ethereum from "./ethereum";
 
 class RpcEngine implements IRpcEngine {

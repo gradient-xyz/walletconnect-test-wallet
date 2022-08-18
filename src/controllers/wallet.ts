@@ -1,13 +1,10 @@
 import * as ethers from "ethers";
 // import { signTypedData_v4 } from "eth-sig-util";
-import {
-  DEFAULT_ACTIVE_INDEX,
-  DEFAULT_CHAIN_ID,
-} from "../constants/default";
-import { getAppConfig } from "../config";
-import AWS from "aws-sdk";
-import { Auth } from "aws-amplify";
 import { KMSSigner } from "@rumblefishdev/eth-signer-kms";
+import { Auth } from "aws-amplify";
+import AWS from "aws-sdk";
+import { getAppConfig } from "../config";
+import { DEFAULT_ACTIVE_INDEX, DEFAULT_CHAIN_ID } from "../constants/default";
 
 export class WalletController {
   public path: string;
@@ -16,7 +13,7 @@ export class WalletController {
   public activeIndex: number = DEFAULT_ACTIVE_INDEX;
   public activeChainId: number = DEFAULT_CHAIN_ID;
 
-  constructor() {   
+  constructor() {
     this.path = this.getPath();
     this.wallet = this.init();
   }
@@ -40,16 +37,20 @@ export class WalletController {
   }
 
   public async getAccounts() {
-    const creds = await Auth.currentUserCredentials()
-    AWS.config.credentials = creds
-    const kms = new AWS.KMS({ region: "us-west-2" })
+    const creds = await Auth.currentUserCredentials();
+    AWS.config.credentials = creds;
+    const kms = new AWS.KMS({ region: "us-west-2" });
 
     // const resp = await kmsClient.listKeys().promise()
     // console.log(resp)
 
-    const signer = new KMSSigner(ethers.getDefaultProvider(), '8543057e-ea5c-4518-9cb6-41c6eb34abb8', kms)
-    const address = await signer.getAddress()
-    this.wallet = signer
+    const signer = new KMSSigner(
+      ethers.getDefaultProvider(),
+      "8543057e-ea5c-4518-9cb6-41c6eb34abb8",
+      kms,
+    );
+    const address = await signer.getAddress();
+    this.wallet = signer;
     // const accounts = [];
     // let wallet = null;
     // for (let i = 0; i < count; i++) {
@@ -133,11 +134,8 @@ export class WalletController {
 
   public async sendTransaction(transaction: any) {
     if (this.wallet) {
-      const address = await this.wallet.getAddress()
-      if (
-        transaction.from &&
-        transaction.from.toLowerCase() !== address.toLowerCase()
-      ) {
+      const address = await this.wallet.getAddress();
+      if (transaction.from && transaction.from.toLowerCase() !== address.toLowerCase()) {
         console.error("Transaction request From doesn't match active account");
       }
 
@@ -151,8 +149,8 @@ export class WalletController {
         delete transaction.gas;
       }
 
-      delete transaction.gasPrice
-      const txn = await this.wallet.populateTransaction(transaction)
+      delete transaction.gasPrice;
+      const txn = await this.wallet.populateTransaction(transaction);
 
       const result = await this.wallet.sendTransaction(txn);
       return result.hash;
@@ -168,10 +166,10 @@ export class WalletController {
         delete data.from;
       }
       data.gasLimit = data.gas;
-      data.maxFeePerGas = 0
+      data.maxFeePerGas = 0;
       delete data.gas;
-      delete data.gasPrice
-      const txn = await this.wallet.populateTransaction(data)
+      delete data.gasPrice;
+      const txn = await this.wallet.populateTransaction(data);
       const result = await this.wallet.signTransaction(txn);
       return result;
     } else {
@@ -182,7 +180,7 @@ export class WalletController {
 
   public async signMessage(data: any) {
     if (this.wallet) {
-      return this.wallet.signMessage(data)
+      return this.wallet.signMessage(data);
     } else {
       console.error("No Active Account");
     }
@@ -203,7 +201,7 @@ export class WalletController {
 
   public async signTypedData(data: any) {
     if (this.wallet) {
-      return this.wallet.signMessage(data)
+      return this.wallet.signMessage(data);
       // const result = signTypedData_v4(Buffer.from(this.wallet.privateKey.slice(2), "hex"), {
       //   data: JSON.parse(data),
       // });

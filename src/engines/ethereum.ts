@@ -1,11 +1,11 @@
-import { signingMethods, convertHexToNumber } from "@walletconnect/utils";
+import { convertHexToNumber, signingMethods } from "@walletconnect/utils";
 
-import { WCAction, WCState } from "../context/walletConnectContext";
-import { apiGetCustomRequest } from "../helpers/api";
-import { convertHexToUtf8IfPossible } from "../helpers/utilities";
-import { IRequestRenderParams, IRpcEngine } from "../helpers/types";
-import { getAppControllers } from "../controllers";
 import { Dispatch } from "react";
+import { WCAction, WCState } from "../context/walletConnectContext";
+import { getAppControllers } from "../controllers";
+import { apiGetCustomRequest } from "../helpers/api";
+import { IRequestRenderParams, IRpcEngine } from "../helpers/types";
+import { convertHexToUtf8IfPossible } from "../helpers/utilities";
 
 export function filterEthereumRequests(payload: any) {
   return (
@@ -106,7 +106,11 @@ export function renderEthereumRequests(payload: any): IRequestRenderParams[] {
   return params;
 }
 
-export async function signEthereumRequests(payload: any, state: WCState, dispatch: Dispatch<WCAction>) {
+export async function signEthereumRequests(
+  payload: any,
+  state: WCState,
+  dispatch: Dispatch<WCAction>,
+) {
   const { connector, address } = state;
 
   let errorMsg = "";
@@ -178,8 +182,8 @@ export async function signEthereumRequests(payload: any, state: WCState, dispatc
       });
 
       dispatch({
-        type: 'removeRequest'
-      })
+        type: "removeRequest",
+      });
     } else {
       let message = "JSON RPC method not supported";
       if (errorMsg) {
@@ -193,8 +197,8 @@ export async function signEthereumRequests(payload: any, state: WCState, dispatc
         error: { message },
       });
       dispatch({
-        type: 'removeRequest'
-      })
+        type: "removeRequest",
+      });
     }
   }
 }

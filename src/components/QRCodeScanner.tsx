@@ -72,7 +72,7 @@ interface IQRCodeScannerState {
 const QRCodeScanner = (props: IQRCodeScannerProps) => {
   const [state, setState] = useState<IQRCodeScannerState>({
     delay: 300,
-  })
+  });
 
   const stopRecording = () => {
     setState({ delay: false });
@@ -106,26 +106,25 @@ const QRCodeScanner = (props: IQRCodeScannerProps) => {
   };
 
   React.useEffect(() => {
-    return () => stopRecording()
-  })
-  
-    return (
-      <SQRCodeScannerContainer>
-        <SCloseButton onClick={onClose}>
-          <SFirstLine />
-          <SSecondLine />
-        </SCloseButton>
-        <SQRCodeScannerWrapper>
-          <QrReader
-            delay={state.delay}
-            onError={handleError}
-            onScan={handleScan}
-            style={{ width: "100%" }}
-          />
-        </SQRCodeScannerWrapper>
-      </SQRCodeScannerContainer>
-    );
-  
-}
+    return () => stopRecording();
+  });
+
+  return (
+    <SQRCodeScannerContainer>
+      <SCloseButton onClick={onClose}>
+        <SFirstLine />
+        <SSecondLine />
+      </SCloseButton>
+      <SQRCodeScannerWrapper>
+        <QrReader
+          delay={state.delay}
+          onError={handleError}
+          onScan={handleScan}
+          style={{ width: "100%" }}
+        />
+      </SQRCodeScannerWrapper>
+    </SQRCodeScannerContainer>
+  );
+};
 
 export default QRCodeScanner;

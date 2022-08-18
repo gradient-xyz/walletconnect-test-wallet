@@ -1,9 +1,9 @@
-import React from "react"
-import styled from "styled-components"
-import { useWalletConnectContext } from "src/context/walletConnectContext"
-import Column from "./Column"
-import PeerMeta from "./PeerMeta"
-import Button from "./Button"
+import React from "react";
+import styled from "styled-components";
+import { useWalletConnectContext } from "src/context/walletConnectContext";
+import Column from "./Column";
+import PeerMeta from "./PeerMeta";
+import Button from "./Button";
 
 const SActions = styled.div`
   margin: 0;
@@ -17,33 +17,31 @@ const SActions = styled.div`
 `;
 
 export const PeerDataCol = () => {
-    const { peerMeta, connected, approveSession, rejectSession } = useWalletConnectContext()
+  const { peerMeta, connected, approveSession, rejectSession } = useWalletConnectContext();
 
-    function peerData() {
-        if(peerMeta) {
-            if (peerMeta?.name) {
-                return (
-                    <> {peerMeta.name} </>
-                )
-            } else {
-                return (<PeerMeta peerMeta={peerMeta} />)
-            }
-        } else {
-            return (<></>)
-        }
-    }
-
-    if (peerMeta && !connected) {
-        return (
-            <Column>
-                {peerData()}
-                <SActions>
-                    <Button onClick={approveSession}>{`Approve`}</Button>
-                    <Button onClick={rejectSession}>{`Reject`}</Button>
-                </SActions>
-            </Column>
-        )
+  function peerData() {
+    if (peerMeta) {
+      if (peerMeta?.name) {
+        return <> {peerMeta.name} </>;
+      } else {
+        return <PeerMeta peerMeta={peerMeta} />;
+      }
     } else {
-        return (<></>)
+      return <></>;
     }
-}
+  }
+
+  if (peerMeta && !connected) {
+    return (
+      <Column>
+        {peerData()}
+        <SActions>
+          <Button onClick={approveSession}>{`Approve`}</Button>
+          <Button onClick={rejectSession}>{`Reject`}</Button>
+        </SActions>
+      </Column>
+    );
+  } else {
+    return <></>;
+  }
+};

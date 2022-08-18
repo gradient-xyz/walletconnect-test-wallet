@@ -86,7 +86,7 @@ const Header = () => {
           <p>{activeChain}</p>
         </SActiveChain>
       )}
-      {(address && killSession) && (
+      {address && killSession && (
         <SActiveAccount>
           <SBlockie address={address} />
           <SAddress connected={connected}>{ellipseAddress(address)}</SAddress>
