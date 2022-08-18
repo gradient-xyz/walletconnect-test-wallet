@@ -1,33 +1,21 @@
 import * as ethers from "ethers";
-import { signTypedData_v4 } from "eth-sig-util";
-import { getChainData } from "../helpers/utilities";
-import { setLocal, getLocal } from "../helpers/local";
-import {
-  ENTROPY_KEY,
-  MNEMONIC_KEY,
-  DEFAULT_ACTIVE_INDEX,
-  DEFAULT_CHAIN_ID,
-} from "../constants/default";
+// import { signTypedData_v4 } from "eth-sig-util";
+import { KMSSigner } from "@rumblefishdev/eth-signer-kms";
+import { Auth } from "aws-amplify";
+import AWS from "aws-sdk";
 import { getAppConfig } from "../config";
+import { DEFAULT_ACTIVE_INDEX, DEFAULT_CHAIN_ID } from "../constants/default";
 
 export class WalletController {
   public path: string;
-  public entropy: string;
-  public mnemonic: string;
-  public wallet: ethers.Wallet;
+  public wallet: ethers.Signer;
 
   public activeIndex: number = DEFAULT_ACTIVE_INDEX;
   public activeChainId: number = DEFAULT_CHAIN_ID;
 
   constructor() {
     this.path = this.getPath();
-    this.entropy = this.getEntropy();
-    this.mnemonic = this.getMnemonic();
     this.wallet = this.init();
-  }
-
-  get provider(): ethers.providers.Provider {
-    return this.wallet.provider;
   }
 
   public isActive() {
@@ -41,39 +29,35 @@ export class WalletController {
     return this.activeIndex;
   }
 
-  public getWallet(index?: number, chainId?: number): ethers.Wallet {
+  public getWallet(index?: number, chainId?: number): ethers.Signer {
     if (!this.wallet || this.activeIndex === index || this.activeChainId === chainId) {
       return this.init(index, chainId);
     }
     return this.wallet;
   }
 
-  public getAccounts(count = getAppConfig().numberOfAccounts) {
-    const accounts = [];
-    let wallet = null;
-    for (let i = 0; i < count; i++) {
-      wallet = this.generateWallet(i);
-      accounts.push(wallet.address);
-    }
-    return accounts;
-  }
+  public async getAccounts() {
+    const creds = await Auth.currentUserCredentials();
+    AWS.config.credentials = creds;
+    const kms = new AWS.KMS({ region: "us-west-2" });
 
-  public getData(key: string): string {
-    let value = getLocal(key);
-    if (!value) {
-      switch (key) {
-        case ENTROPY_KEY:
-          value = this.generateEntropy();
-          break;
-        case MNEMONIC_KEY:
-          value = this.generateMnemonic();
-          break;
-        default:
-          throw new Error(`Unknown data key: ${key}`);
-      }
-      setLocal(key, value);
-    }
-    return value;
+    // const resp = await kmsClient.listKeys().promise()
+    // console.log(resp)
+
+    const signer = new KMSSigner(
+      ethers.getDefaultProvider(),
+      "8543057e-ea5c-4518-9cb6-41c6eb34abb8",
+      kms,
+    );
+    const address = await signer.getAddress();
+    this.wallet = signer;
+    // const accounts = [];
+    // let wallet = null;
+    // for (let i = 0; i < count; i++) {
+    //   wallet = this.generateWallet(i);
+    //   accounts.push(wallet.address);
+    // }
+    return [address];
   }
 
   public getPath(index: number = this.activeIndex) {
@@ -81,44 +65,22 @@ export class WalletController {
     return this.path;
   }
 
-  public generateEntropy(): string {
-    this.entropy = ethers.utils.hexlify(ethers.utils.randomBytes(16));
-    return this.entropy;
-  }
-
-  public generateMnemonic() {
-    this.mnemonic = ethers.utils.entropyToMnemonic(this.getEntropy());
-    return this.mnemonic;
-  }
-
-  public generateWallet(index: number) {
-    this.wallet = ethers.Wallet.fromMnemonic(this.getMnemonic(), this.getPath(index));
-    return this.wallet;
-  }
-
-  public getEntropy(): string {
-    return this.getData(ENTROPY_KEY);
-  }
-
-  public getMnemonic(): string {
-    return this.getData(MNEMONIC_KEY);
-  }
-
-  public init(index = DEFAULT_ACTIVE_INDEX, chainId = DEFAULT_CHAIN_ID): ethers.Wallet {
+  public init(index = DEFAULT_ACTIVE_INDEX, chainId = DEFAULT_CHAIN_ID): ethers.Signer {
     return this.update(index, chainId);
   }
 
-  public update(index: number, chainId: number): ethers.Wallet {
-    const firstUpdate = typeof this.wallet === "undefined";
-    this.activeIndex = index;
-    this.activeChainId = chainId;
-    const rpcUrl = getChainData(chainId).rpc_url;
-    const wallet = this.generateWallet(index);
-    const provider = new ethers.providers.JsonRpcProvider(rpcUrl);
-    this.wallet = wallet.connect(provider);
-    if (!firstUpdate) {
-      // update another controller if necessary here
-    }
+  public update(index: number, chainId: number): ethers.Signer {
+    // TODO setup wallet switching
+    // const firstUpdate = typeof this.wallet === "undefined";
+    // this.activeIndex = index;
+    // this.activeChainId = chainId;
+    // const rpcUrl = getChainData(chainId).rpc_url;
+    // const wallet = this.generateWallet(index);
+    // const provider = new ethers.providers.JsonRpcProvider(rpcUrl);
+    // this.wallet = wallet.connect(provider);
+    // if (!firstUpdate) {
+    //   // update another controller if necessary here
+    // }
     return this.wallet;
   }
 
@@ -146,12 +108,34 @@ export class WalletController {
     return tx;
   }
 
+  public async formatTransaction(transaction: any) {
+    let tx = Object.assign({}, transaction);
+    if (this.wallet) {
+      if (tx.gas) {
+        tx.gasLimit = tx.gas;
+        delete tx.gas;
+      }
+      if (tx.from) {
+        tx.from = ethers.utils.getAddress(tx.from);
+      }
+
+      try {
+        tx = await this.wallet.populateTransaction(tx);
+        tx.gasLimit = ethers.BigNumber.from(tx.gasLimit);
+        tx.gasPrice = ethers.BigNumber.from(tx.gasPrice);
+        tx.nonce = ethers.BigNumber.from(tx.nonce);
+      } catch (err) {
+        console.error("Error populating transaction", tx, err);
+      }
+    }
+
+    return tx;
+  }
+
   public async sendTransaction(transaction: any) {
     if (this.wallet) {
-      if (
-        transaction.from &&
-        transaction.from.toLowerCase() !== this.wallet.address.toLowerCase()
-      ) {
+      const address = await this.wallet.getAddress();
+      if (transaction.from && transaction.from.toLowerCase() !== address.toLowerCase()) {
         console.error("Transaction request From doesn't match active account");
       }
 
@@ -165,7 +149,10 @@ export class WalletController {
         delete transaction.gas;
       }
 
-      const result = await this.wallet.sendTransaction(transaction);
+      delete transaction.gasPrice;
+      const txn = await this.wallet.populateTransaction(transaction);
+
+      const result = await this.wallet.sendTransaction(txn);
       return result.hash;
     } else {
       console.error("No Active Account");
@@ -179,8 +166,11 @@ export class WalletController {
         delete data.from;
       }
       data.gasLimit = data.gas;
+      data.maxFeePerGas = 0;
       delete data.gas;
-      const result = await this.wallet.signTransaction(data);
+      delete data.gasPrice;
+      const txn = await this.wallet.populateTransaction(data);
+      const result = await this.wallet.signTransaction(txn);
       return result;
     } else {
       console.error("No Active Account");
@@ -190,10 +180,7 @@ export class WalletController {
 
   public async signMessage(data: any) {
     if (this.wallet) {
-      const signingKey = new ethers.utils.SigningKey(this.wallet.privateKey);
-      const sigParams = await signingKey.signDigest(ethers.utils.arrayify(data));
-      const result = await ethers.utils.joinSignature(sigParams);
-      return result;
+      return this.wallet.signMessage(data);
     } else {
       console.error("No Active Account");
     }
@@ -214,10 +201,11 @@ export class WalletController {
 
   public async signTypedData(data: any) {
     if (this.wallet) {
-      const result = signTypedData_v4(Buffer.from(this.wallet.privateKey.slice(2), "hex"), {
-        data: JSON.parse(data),
-      });
-      return result;
+      return this.wallet.signMessage(data);
+      // const result = signTypedData_v4(Buffer.from(this.wallet.privateKey.slice(2), "hex"), {
+      //   data: JSON.parse(data),
+      // });
+      // return result;
     } else {
       console.error("No Active Account");
     }

@@ -1,5 +1,5 @@
+import { WCState } from "../context/walletConnectContext";
 import { IRpcEngine } from "../helpers/types";
-import { IAppState } from "../App";
 import ethereum from "./ethereum";
 
 class RpcEngine implements IRpcEngine {
@@ -13,7 +13,7 @@ class RpcEngine implements IRpcEngine {
     return engine.filter(payload);
   }
 
-  public router(payload: any, state: IAppState, setState: any) {
+  public router(payload: any, state: WCState, setState: any) {
     const engine = this.getEngine(payload);
     return engine.router(payload, state, setState);
   }
@@ -23,7 +23,7 @@ class RpcEngine implements IRpcEngine {
     return engine.render(payload);
   }
 
-  public signer(payload: any, state: IAppState, setState: any) {
+  public signer(payload: any, state: WCState, setState: any) {
     const engine = this.getEngine(payload);
     return engine.signer(payload, state, setState);
   }

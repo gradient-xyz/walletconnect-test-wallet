@@ -16,7 +16,8 @@
     "build": "react-scripts-ts build",
     "test": "react-scripts-ts test --env=jsdom",
     "eject": "react-scripts-ts eject",
-    "lint": "eslint -c './.eslintrc' --fix './src/**/*{.ts,.tsx}'"
+    "lint": "eslint -c './.eslintrc' --fix './src/**/*{.ts,.tsx}'",
+    "prettier-format": "prettier --config .prettierrc 'src/**/*{.ts,.tsx}' --write"
   },
   "repository": {
     "type": "git",
@@ -26,8 +27,12 @@
     "url": "https://github.com/walletconnect/walletconnect-test-wallet/issues"
   },
   "dependencies": {
+    "@aws-amplify/ui-react": "^3.4.0",
+    "@rumblefishdev/eth-signer-kms": "^2.1.0",
     "@walletconnect/client": "^1.7.8",
     "@walletconnect/utils": "^1.7.8",
+    "aws-amplify": "^4.3.30",
+    "aws-sdk": "^2.1197.0",
     "axios": "^0.21.1",
     "bignumber.js": "^9.0.1",
     "blockies-ts": "^1.0.0",
@@ -35,8 +40,8 @@
     "eth-sig-util": "^2.5.3",
     "ethers": "^5.0.17",
     "prop-types": "^15.7.2",
-    "react": "^16.12.0",
-    "react-dom": "^16.12.0",
+    "react": "^18.2.0",
+    "react-dom": "^18.2.0",
     "react-qr-reader": "^2.2.1",
     "react-scripts-ts": "^4.0.8",
     "styled-components": "^5.2.0"
@@ -45,8 +50,8 @@
     "@types/jest": "^24.0.25",
     "@types/node": "^13.1.6",
     "@types/prop-types": "^15.7.3",
-    "@types/react": "^16.9.51",
-    "@types/react-dom": "^16.9.4",
+    "@types/react": "^18.0.0",
+    "@types/react-dom": "^18.0.0",
     "@types/react-qr-reader": "^2.1.2",
     "@types/styled-components": "^5.1.2",
     "@typescript-eslint/eslint-plugin": "^2.20.0",

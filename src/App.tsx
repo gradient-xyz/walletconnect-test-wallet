@@ -1,31 +1,33 @@
 import * as React from "react";
+import { Amplify, Hub, Logger } from "aws-amplify";
 import styled from "styled-components";
-import WalletConnect from "@walletconnect/client";
-import Button from "./components/Button";
-import Card from "./components/Card";
-import Input from "./components/Input";
-import Header from "./components/Header";
-import Column from "./components/Column";
-import PeerMeta from "./components/PeerMeta";
-import RequestDisplay from "./components/RequestDisplay";
-import RequestButton from "./components/RequestButton";
-import AccountDetails from "./components/AccountDetails";
-import QRCodeScanner, { IQRCodeValidateResponse } from "./components/QRCodeScanner";
-import { DEFAULT_CHAIN_ID, DEFAULT_ACTIVE_INDEX } from "./constants/default";
-import { getCachedSession } from "./helpers/utilities";
-import { getAppControllers } from "./controllers";
+
+// import { withAuthenticator } from '@aws-amplify/ui-react';
+import "@aws-amplify/ui-react/styles.css";
+// import { CognitoHostedUIIdentityProvider, CognitoUser } from '@aws-amplify/auth';
+
+import { Web3ContextProvider } from "./context/walletConnectContext";
+import { Main } from "./components/Main";
 import { getAppConfig } from "./config";
+// import { useEffect, useState } from "react";
+import { Authenticator } from "@aws-amplify/ui-react";
 
-const SContainer = styled.div`
-  display: flex;
-  flex-direction: column;
+Amplify.configure({
+  aws_cognito_region: "us-west-2", // (required) - Region where Amazon Cognito project was created
+  aws_user_pools_id: "us-west-2_aROxhrnRw", // (optional) -  Amazon Cognito User Pool ID
+  aws_user_pools_web_client_id: "48fars57hcget42e3pq5c0nccb", // (optional) - Amazon Cognito App Client ID (App client secret needs to be disabled)
+  aws_cognito_identity_pool_id: "us-west-2:956b16c0-a11e-4b1f-8468-813e145590ea", // (optional) - Amazon Cognito Identity Pool ID
+  aws_mandatory_sign_in: "enable", // (optional) - Users are not allowed to get the aws credentials unless they are signed in
 
-  width: 100%;
-  min-height: 100%;
-  max-width: 600px;
-  margin: 0 auto;
-  padding: 0;
-`;
+  oauth: {
+    domain: "bryan-test.auth.us-west-2.amazoncognito.com",
+    scope: ["profile", "email", "openid"],
+    redirectSignIn: "http://localhost:3000/",
+    redirectSignOut: "http://localhost:3000/",
+    clientId: "48fars57hcget42e3pq5c0nccb",
+    responseType: "code", // or 'token', note that REFRESH token will only be generated when the responseType is code
+  },
+});
 
 const SVersionNumber = styled.div`
   position: absolute;
@@ -36,543 +38,161 @@ const SVersionNumber = styled.div`
   transform: rotate(-90deg);
 `;
 
-const SContent = styled.div`
-  width: 100%;
-  flex: 1;
-  padding: 30px;
-  display: flex;
-  flex-direction: column;
-  align-items: center;
-  justify-content: center;
-`;
+const logger = new Logger("My-Logger");
 
-const SLogo = styled.div`
-  padding: 10px 0;
-  display: flex;
-  max-height: 100px;
-  & img {
-    width: 100%;
+const listener = (data: any) => {
+  switch (data.payload.event) {
+    case "signIn":
+      logger.info("user signed in", data);
+      break;
+    case "signUp":
+      logger.info("user signed up", data);
+      break;
+    case "signOut":
+      logger.info("user signed out", data);
+      break;
+    case "signIn_failure":
+      logger.error("user sign in failed", data);
+      break;
+    case "tokenRefresh":
+      logger.info("token refresh succeeded", data);
+      break;
+    case "tokenRefresh_failure":
+      logger.error("token refresh failed", data);
+      break;
+    case "autoSignIn":
+      logger.info("Auto Sign In after Sign Up succeeded", data);
+      break;
+    case "autoSignIn_failure":
+      logger.error("Auto Sign In after Sign Up failed", data);
+      break;
+    case "configured":
+      logger.info("the Auth module is configured", data);
   }
-`;
-
-const SActions = styled.div`
-  margin: 0;
-  margin-top: 20px;
-
-  display: flex;
-  justify-content: space-around;
-  & > * {
-    margin: 0 5px;
-  }
-`;
-
-const SActionsColumn = styled(SActions as any)`
-  flex-direction: row;
-  align-items: center;
-
-  margin: 24px 0 6px;
-
-  & > p {
-    font-weight: 600;
-  }
-`;
-
-const SButton = styled(Button)`
-  width: 50%;
-  height: 40px;
-`;
-
-const SInput = styled(Input)`
-  width: 50%;
-  margin: 10px;
-  font-size: 14px;
-  height: 40px;
-`;
-
-const SConnectedPeer = styled.div`
-  display: flex;
-  align-items: center;
-  & img {
-    width: 40px;
-    height: 40px;
-  }
-  & > div {
-    margin-left: 10px;
-  }
-`;
-
-const SRequestButton = styled(RequestButton)`
-  margin-bottom: 10px;
-`;
-
-export interface IAppState {
-  loading: boolean;
-  scanner: boolean;
-  connector: WalletConnect | null;
-  uri: string;
-  peerMeta: {
-    description: string;
-    url: string;
-    icons: string[];
-    name: string;
-    ssl: boolean;
-  };
-  connected: boolean;
-  chainId: number;
-  accounts: string[];
-  activeIndex: number;
-  address: string;
-  requests: any[];
-  results: any[];
-  payload: any;
-}
-
-export const DEFAULT_ACCOUNTS = getAppControllers().wallet.getAccounts();
-export const DEFAULT_ADDRESS = DEFAULT_ACCOUNTS[DEFAULT_ACTIVE_INDEX];
-
-export const INITIAL_STATE: IAppState = {
-  loading: false,
-  scanner: false,
-  connector: null,
-  uri: "",
-  peerMeta: {
-    description: "",
-    url: "",
-    icons: [],
-    name: "",
-    ssl: false,
-  },
-  connected: false,
-  chainId: getAppConfig().chainId || DEFAULT_CHAIN_ID,
-  accounts: DEFAULT_ACCOUNTS,
-  address: DEFAULT_ADDRESS,
-  activeIndex: DEFAULT_ACTIVE_INDEX,
-  requests: [],
-  results: [],
-  payload: null,
 };
 
-class App extends React.Component<{}> {
-  public state: IAppState;
+Hub.listen("auth", listener);
 
-  constructor(props: any) {
-    super(props);
-    this.state = {
-      ...INITIAL_STATE,
-    };
-  }
-  public componentDidMount() {
-    this.init();
-  }
+const App = () => {
+  // const updateSession = async (sessionParams: { chainId?: number; activeIndex?: number }) => {
+  //   const { connector, chainId, accounts, activeIndex } = state;
+  //   const newChainId = sessionParams.chainId || chainId;
+  //   const newActiveIndex = sessionParams.activeIndex || activeIndex;
+  //   const address = accounts[newActiveIndex];
+  //   if (connector) {
+  //     connector.updateSession({
+  //       chainId: newChainId,
+  //       accounts: [address],
+  //     });
+  //   }
+  //   await setState({
+  //     connector,
+  //     address,
+  //     accounts,
+  //     activeIndex: newActiveIndex,
+  //     chainId: newChainId,
+  //   });
+  //   await getAppControllers().wallet.update(newActiveIndex, newChainId);
+  //   await getAppConfig().events.update(state, bindedSetState);
+  // };
 
-  public init = async () => {
-    let { activeIndex, chainId } = this.state;
+  // const updateChain = async (chainId: number | string) => {
+  //   await updateSession({ chainId: Number(chainId) });
+  // };
 
-    const session = getCachedSession();
+  // const updateAddress = async (activeIndex: number) => {
+  //   await updateSession({ activeIndex });
+  // };
 
-    if (!session) {
-      await getAppControllers().wallet.init(activeIndex, chainId);
-    } else {
-      const connector = new WalletConnect({ session });
+  // const openRequest = async (request: any) => {
+  //   const payload = Object.assign({}, request);
 
-      const { connected, accounts, peerMeta } = connector;
+  //   const params = payload.params[0];
+  //   if (request.method === "eth_sendTransaction") {
+  //     payload.params[0] = await getAppControllers().wallet.populateTransaction(params);
+  //   }
 
-      const address = accounts[0];
+  //   setState({
+  //     payload,
+  //   });
+  // };
 
-      activeIndex = accounts.indexOf(address);
-      chainId = connector.chainId;
+  // const closeRequest = async () => {
+  //   const { requests, payload } = state;
+  //   const filteredRequests = requests.filter(request => request.id !== payload.id);
+  //   await setState({
+  //     requests: filteredRequests,
+  //     payload: null,
+  //   });
+  // };
 
-      await getAppControllers().wallet.init(activeIndex, chainId);
+  // const approveRequest = async () => {
+  //   const { connector, payload } = state;
 
-      await this.setState({
-        connected,
-        connector,
-        address,
-        activeIndex,
-        accounts,
-        chainId,
-        peerMeta,
-      });
+  //   try {
+  //     await getAppConfig().rpcEngine.signer(payload, state, bindedSetState);
+  //   } catch (error) {
+  //     console.error(error);
+  //     if (connector) {
+  //       connector.rejectRequest({
+  //         id: payload.id,
+  //         error: { message: "Failed or Rejected Request" },
+  //       });
+  //     }
+  //   }
 
-      this.subscribeToEvents();
-    }
-    await getAppConfig().events.init(this.state, this.bindedSetState);
-  };
+  //   closeRequest();
+  //   await setState({ connector });
+  // };
 
-  public bindedSetState = (newState: Partial<IAppState>) => this.setState(newState);
+  // const rejectRequest = async () => {
+  //   const { connector, payload } = state;
+  //   if (connector) {
+  //     connector.rejectRequest({
+  //       id: payload.id,
+  //       error: { message: "Failed or Rejected Request" },
+  //     });
+  //   }
+  //   await closeRequest();
+  //   await setState({ connector });
+  // };
 
-  public initWalletConnect = async () => {
-    const { uri } = this.state;
+  // const [user, setUser] = useState<CognitoUser | null>(null);
+  // const [customState, setCustomState] = useState<any | null>(null);
 
-    this.setState({ loading: true });
+  // useEffect(() => {
+  //   const unsubscribe = Hub.listen("auth", ({ payload: { event, data } }) => {
+  //     switch (event) {
+  //       case "signIn":
+  //         setUser(data);
+  //         break;
+  //       case "signOut":
+  //         setUser(null);
+  //         break;
+  //       case "customOAuthState":
+  //         setCustomState(data);
+  //     }
+  //   });
 
-    try {
-      const connector = new WalletConnect({ uri });
+  //   Auth.currentAuthenticatedUser()
+  //     .then(currentUser => setUser(currentUser))
+  //     .catch(() => console.log("Not signed in"));
 
-      if (!connector.connected) {
-        await connector.createSession();
-      }
+  //   return unsubscribe;
+  // }, []);
 
-      await this.setState({
-        loading: false,
-        connector,
-        uri: connector.uri,
-      });
-
-      this.subscribeToEvents();
-    } catch (error) {
-      this.setState({ loading: false });
-
-      throw error;
-    }
-  };
-
-  public approveSession = () => {
-    console.log("ACTION", "approveSession");
-    const { connector, chainId, address } = this.state;
-    if (connector) {
-      connector.approveSession({ chainId, accounts: [address] });
-    }
-    this.setState({ connector });
-  };
-
-  public rejectSession = () => {
-    console.log("ACTION", "rejectSession");
-    const { connector } = this.state;
-    if (connector) {
-      connector.rejectSession();
-    }
-    this.setState({ connector });
-  };
-
-  public killSession = () => {
-    console.log("ACTION", "killSession");
-    const { connector } = this.state;
-    if (connector) {
-      connector.killSession();
-    }
-    this.resetApp();
-  };
-
-  public resetApp = async () => {
-    await this.setState({ ...INITIAL_STATE });
-    this.init();
-  };
-
-  public subscribeToEvents = () => {
-    console.log("ACTION", "subscribeToEvents");
-    const { connector } = this.state;
-
-    if (connector) {
-      connector.on("session_request", (error, payload) => {
-        console.log("EVENT", "session_request");
-
-        if (error) {
-          throw error;
-        }
-        console.log("SESSION_REQUEST", payload.params);
-        const { peerMeta } = payload.params[0];
-        this.setState({ peerMeta });
-      });
-
-      connector.on("session_update", error => {
-        console.log("EVENT", "session_update");
-
-        if (error) {
-          throw error;
-        }
-      });
-
-      connector.on("call_request", async (error, payload) => {
-        // tslint:disable-next-line
-        console.log("EVENT", "call_request", "method", payload.method);
-        console.log("EVENT", "call_request", "params", payload.params);
-
-        if (error) {
-          throw error;
-        }
-
-        await getAppConfig().rpcEngine.router(payload, this.state, this.bindedSetState);
-      });
-
-      connector.on("connect", (error, payload) => {
-        console.log("EVENT", "connect");
-
-        if (error) {
-          throw error;
-        }
-
-        this.setState({ connected: true });
-      });
-
-      connector.on("disconnect", (error, payload) => {
-        console.log("EVENT", "disconnect");
-
-        if (error) {
-          throw error;
-        }
-
-        this.resetApp();
-      });
-
-      if (connector.connected) {
-        const { chainId, accounts } = connector;
-        const index = 0;
-        const address = accounts[index];
-        getAppControllers().wallet.update(index, chainId);
-        this.setState({
-          connected: true,
-          address,
-          chainId,
-        });
-      }
-
-      this.setState({ connector });
-    }
-  };
-
-  public updateSession = async (sessionParams: { chainId?: number; activeIndex?: number }) => {
-    const { connector, chainId, accounts, activeIndex } = this.state;
-    const newChainId = sessionParams.chainId || chainId;
-    const newActiveIndex = sessionParams.activeIndex || activeIndex;
-    const address = accounts[newActiveIndex];
-    if (connector) {
-      connector.updateSession({
-        chainId: newChainId,
-        accounts: [address],
-      });
-    }
-    await this.setState({
-      connector,
-      address,
-      accounts,
-      activeIndex: newActiveIndex,
-      chainId: newChainId,
-    });
-    await getAppControllers().wallet.update(newActiveIndex, newChainId);
-    await getAppConfig().events.update(this.state, this.bindedSetState);
-  };
-
-  public updateChain = async (chainId: number | string) => {
-    await this.updateSession({ chainId: Number(chainId) });
-  };
-
-  public updateAddress = async (activeIndex: number) => {
-    await this.updateSession({ activeIndex });
-  };
-
-  public toggleScanner = () => {
-    console.log("ACTION", "toggleScanner");
-    this.setState({ scanner: !this.state.scanner });
-  };
-
-  public onQRCodeValidate = (data: string): IQRCodeValidateResponse => {
-    const res: IQRCodeValidateResponse = {
-      error: null,
-      result: null,
-    };
-    try {
-      res.result = data;
-    } catch (error) {
-      res.error = error;
-    }
-
-    return res;
-  };
-
-  public onQRCodeScan = async (data: any) => {
-    const uri = typeof data === "string" ? data : "";
-    if (uri) {
-      await this.setState({ uri });
-      await this.initWalletConnect();
-      this.toggleScanner();
-    }
-  };
-
-  public onURIPaste = async (e: any) => {
-    const data = e.target.value;
-    const uri = typeof data === "string" ? data : "";
-    if (uri) {
-      await this.setState({ uri });
-      await this.initWalletConnect();
-    }
-  };
-
-  public onQRCodeError = (error: Error) => {
-    throw error;
-  };
-
-  public onQRCodeClose = () => this.toggleScanner();
-
-  public openRequest = async (request: any) => {
-    const payload = Object.assign({}, request);
-
-    const params = payload.params[0];
-    if (request.method === "eth_sendTransaction") {
-      payload.params[0] = await getAppControllers().wallet.populateTransaction(params);
-    }
-
-    this.setState({
-      payload,
-    });
-  };
-
-  public closeRequest = async () => {
-    const { requests, payload } = this.state;
-    const filteredRequests = requests.filter(request => request.id !== payload.id);
-    await this.setState({
-      requests: filteredRequests,
-      payload: null,
-    });
-  };
-
-  public approveRequest = async () => {
-    const { connector, payload } = this.state;
-
-    try {
-      await getAppConfig().rpcEngine.signer(payload, this.state, this.bindedSetState);
-    } catch (error) {
-      console.error(error);
-      if (connector) {
-        connector.rejectRequest({
-          id: payload.id,
-          error: { message: "Failed or Rejected Request" },
-        });
-      }
-    }
-
-    this.closeRequest();
-    await this.setState({ connector });
-  };
-
-  public rejectRequest = async () => {
-    const { connector, payload } = this.state;
-    if (connector) {
-      connector.rejectRequest({
-        id: payload.id,
-        error: { message: "Failed or Rejected Request" },
-      });
-    }
-    await this.closeRequest();
-    await this.setState({ connector });
-  };
-
-  public render() {
-    const {
-      peerMeta,
-      scanner,
-      connected,
-      activeIndex,
-      accounts,
-      address,
-      chainId,
-      requests,
-      payload,
-    } = this.state;
-    return (
-      <React.Fragment>
-        <SContainer>
-          <Header
-            connected={connected}
-            address={address}
-            chainId={chainId}
-            killSession={this.killSession}
-          />
-          <SContent>
-            <Card maxWidth={400}>
-              <SLogo>
-                <img src={getAppConfig().logo} alt={getAppConfig().name} />
-              </SLogo>
-              {!connected ? (
-                peerMeta && peerMeta.name ? (
-                  <Column>
-                    <PeerMeta peerMeta={peerMeta} />
-                    <SActions>
-                      <Button onClick={this.approveSession}>{`Approve`}</Button>
-                      <Button onClick={this.rejectSession}>{`Reject`}</Button>
-                    </SActions>
-                  </Column>
-                ) : (
-                  <Column>
-                    <AccountDetails
-                      chains={getAppConfig().chains}
-                      address={address}
-                      activeIndex={activeIndex}
-                      chainId={chainId}
-                      accounts={accounts}
-                      updateAddress={this.updateAddress}
-                      updateChain={this.updateChain}
-                    />
-                    <SActionsColumn>
-                      <SButton onClick={this.toggleScanner}>{`Scan`}</SButton>
-                      {getAppConfig().styleOpts.showPasteUri && (
-                        <>
-                          <p>{"OR"}</p>
-                          <SInput onChange={this.onURIPaste} placeholder={"Paste wc: uri"} />
-                        </>
-                      )}
-                    </SActionsColumn>
-                  </Column>
-                )
-              ) : !payload ? (
-                <Column>
-                  <AccountDetails
-                    chains={getAppConfig().chains}
-                    address={address}
-                    activeIndex={activeIndex}
-                    chainId={chainId}
-                    accounts={accounts}
-                    updateAddress={this.updateAddress}
-                    updateChain={this.updateChain}
-                  />
-                  {peerMeta && peerMeta.name && (
-                    <>
-                      <h6>{"Connected to"}</h6>
-                      <SConnectedPeer>
-                        <img src={peerMeta.icons[0]} alt={peerMeta.name} />
-                        <div>{peerMeta.name}</div>
-                      </SConnectedPeer>
-                    </>
-                  )}
-                  <h6>{"Pending Call Requests"}</h6>
-                  {requests.length ? (
-                    requests.map(request => (
-                      <SRequestButton key={request.id} onClick={() => this.openRequest(request)}>
-                        <div>{request.method}</div>
-                      </SRequestButton>
-                    ))
-                  ) : (
-                    <div>
-                      <div>{"No pending requests"}</div>
-                    </div>
-                  )}
-                </Column>
-              ) : (
-                <RequestDisplay
-                  payload={payload}
-                  peerMeta={peerMeta}
-                  renderPayload={(payload: any) => getAppConfig().rpcEngine.render(payload)}
-                  approveRequest={this.approveRequest}
-                  rejectRequest={this.rejectRequest}
-                />
-              )}
-            </Card>
-          </SContent>
-          {scanner && (
-            <QRCodeScanner
-              onValidate={this.onQRCodeValidate}
-              onScan={this.onQRCodeScan}
-              onError={this.onQRCodeError}
-              onClose={this.onQRCodeClose}
-            />
-          )}
-        </SContainer>
-        {getAppConfig().styleOpts.showVersion && (
-          <SVersionNumber>{`v${process.env.REACT_APP_VERSION}`} </SVersionNumber>
-        )}
-      </React.Fragment>
-    );
-  }
-}
+  return (
+    <React.Fragment>
+      <Authenticator socialProviders={["google"]}>
+        <Web3ContextProvider>
+          <Main />
+        </Web3ContextProvider>
+      </Authenticator>
+      {getAppConfig().styleOpts.showVersion && (
+        <SVersionNumber>{`v${process.env.REACT_APP_VERSION}`} </SVersionNumber>
+      )}
+    </React.Fragment>
+  );
+};
 
 export default App;
