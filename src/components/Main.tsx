@@ -1,6 +1,6 @@
 import React from "react";
-import styled from "styled-components"
-import { useWalletConnectContext } from "src/context/walletConnectContext"
+import styled from "styled-components";
+import { useWalletConnectContext } from "src/context/walletConnectContext";
 import Header from "./Header";
 import Card from "./Card";
 import { getAppConfig } from "src/config";
@@ -94,146 +94,147 @@ const SRequestButton = styled(RequestButton)`
 `;
 
 export const Main = () => {
+  const {
+    connected,
+    requests,
+    peerMeta,
+    payload,
+    connect,
+    openRequest,
+    approveRequest,
+    rejectRequest,
+  } = useWalletConnectContext();
 
-    const { 
-        connected, requests, peerMeta, payload,
-        connect, openRequest, approveRequest, rejectRequest 
-    } = useWalletConnectContext();
+  const [scanner, setScanner] = React.useState(false);
+  const toggleScanner = () => {
+    console.log("ACTION", "toggleScanner");
+    setScanner(!scanner);
+  };
 
-    const [scanner, setScanner] = React.useState(false)
-    const toggleScanner = () => {
-        console.log("ACTION", "toggleScanner");
-        setScanner(!scanner)
+  const onQRCodeValidate = (data: string): IQRCodeValidateResponse => {
+    const res: IQRCodeValidateResponse = {
+      error: null,
+      result: null,
     };
-
-    const onQRCodeValidate = (data: string): IQRCodeValidateResponse => {
-        const res: IQRCodeValidateResponse = {
-            error: null,
-            result: null,
-        };
-        try {
-            res.result = data;
-        } catch (error) {
-            res.error = error;
-        }
-
-        return res;
-    };
-
-    const onQRCodeScan = async (data: any) => {
-        const uri = typeof data === "string" ? data : "";
-        if (uri) {
-            await connect!(uri)
-            toggleScanner();
-        }
-    };
-
-    const onURIPaste = async (e: any) => {
-        const data = e.target.value;
-        const uri = typeof data === "string" ? data : "";
-        if (uri && connect) {
-            await connect(uri)
-        } else {
-            console.log('wc not initialized')
-        }
-    };
-
-    const onQRCodeError = (error: Error) => {
-        throw error;
-    };
-
-    const onQRCodeClose = () => toggleScanner();
-
-    const ConnectionSection = () => {
-        if (peerMeta) {
-            return (<PeerDataCol />)
-        } else {
-            return (
-                <Column>
-                    <AccountDetails
-                        chains={getAppConfig().chains}
-                    />
-                    <SActionsColumn>
-                        <SButton onClick={toggleScanner}>{`Scan`}</SButton>
-                        {getAppConfig().styleOpts.showPasteUri && (
-                            <>
-                                <p>{"OR"}</p>
-                                <SInput onChange={onURIPaste} placeholder={"Paste wc: uri"} />
-                            </>
-                        )}
-                    </SActionsColumn>
-                </Column>
-            )
-        }
+    try {
+      res.result = data;
+    } catch (error) {
+      res.error = error;
     }
 
-    const RequestSection = () => {
-        if (connected) {
-            if (payload) {
-                return (
-                    <RequestDisplay
-                        payload={payload}
-                        peerMeta={peerMeta}
-                        renderPayload={(payload: any) => getAppConfig().rpcEngine.render(payload)}
-                        approveRequest={approveRequest}
-                        rejectRequest={rejectRequest}
-                    />
-                )
-            } else {
-                return (
-                    <Column>
-                        <AccountDetails
-                            chains={getAppConfig().chains}
-                        />
-                        {peerMeta && peerMeta.name && (
-                            <>
-                                <h6>{"Connected to"}</h6>
-                                <SConnectedPeer>
-                                    <img src={peerMeta.icons[0]} alt={peerMeta.name} />
-                                    <div>{peerMeta.name}</div>
-                                </SConnectedPeer>
-                            </>
-                        )}
-                        <h6>{"Pending Call Requests"}</h6>
-                        {requests.length ? (
-                            requests.map(request => (
-                                <SRequestButton key={request.id} onClick={() => openRequest!(request)}>
-                                    <div>{request.method}</div>
-                                </SRequestButton>
-                            ))
-                        ) : (
-                            <div>
-                                <div>{"No pending requests"}</div>
-                            </div>
-                        )}
-                    </Column>
-                )
-            }
-        } else {
-            return (<></>)
-        }
-    }
+    return res;
+  };
 
-    return (
-        <SContainer>
-            <Header />
-            <SContent>
-                <Card maxWidth={400}>
-                    <SLogo>
-                        <img src={getAppConfig().logo} alt={getAppConfig().name} />
-                    </SLogo>
-                    <ConnectionSection />
-                    <RequestSection />
-                </Card>
-            </SContent>
-            {scanner && (
-                <QRCodeScanner
-                    onValidate={onQRCodeValidate}
-                    onScan={onQRCodeScan}
-                    onError={onQRCodeError}
-                    onClose={onQRCodeClose}
-                />
+  const onQRCodeScan = async (data: any) => {
+    const uri = typeof data === "string" ? data : "";
+    if (uri) {
+      await connect!(uri);
+      toggleScanner();
+    }
+  };
+
+  const onURIPaste = async (e: any) => {
+    const data = e.target.value;
+    const uri = typeof data === "string" ? data : "";
+    if (uri && connect) {
+      await connect(uri);
+    } else {
+      console.log("wc not initialized");
+    }
+  };
+
+  const onQRCodeError = (error: Error) => {
+    throw error;
+  };
+
+  const onQRCodeClose = () => toggleScanner();
+
+  const ConnectionSection = () => {
+    if (peerMeta) {
+      return <PeerDataCol />;
+    } else {
+      return (
+        <Column>
+          <AccountDetails chains={getAppConfig().chains} />
+          <SActionsColumn>
+            <SButton onClick={toggleScanner}>{`Scan`}</SButton>
+            {getAppConfig().styleOpts.showPasteUri && (
+              <>
+                <p>{"OR"}</p>
+                <SInput onChange={onURIPaste} placeholder={"Paste wc: uri"} />
+              </>
             )}
-        </SContainer>
-    )
-}
+          </SActionsColumn>
+        </Column>
+      );
+    }
+  };
+
+  const RequestSection = () => {
+    if (connected) {
+      if (payload) {
+        return (
+          <RequestDisplay
+            payload={payload}
+            peerMeta={peerMeta}
+            renderPayload={(payload: any) => getAppConfig().rpcEngine.render(payload)}
+            approveRequest={approveRequest}
+            rejectRequest={rejectRequest}
+          />
+        );
+      } else {
+        return (
+          <Column>
+            <AccountDetails chains={getAppConfig().chains} />
+            {peerMeta && peerMeta.name && (
+              <>
+                <h6>{"Connected to"}</h6>
+                <SConnectedPeer>
+                  <img src={peerMeta.icons[0]} alt={peerMeta.name} />
+                  <div>{peerMeta.name}</div>
+                </SConnectedPeer>
+              </>
+            )}
+            <h6>{"Pending Call Requests"}</h6>
+            {requests.length ? (
+              requests.map(request => (
+                <SRequestButton key={request.id} onClick={() => openRequest!(request)}>
+                  <div>{request.method}</div>
+                </SRequestButton>
+              ))
+            ) : (
+              <div>
+                <div>{"No pending requests"}</div>
+              </div>
+            )}
+          </Column>
+        );
+      }
+    } else {
+      return <></>;
+    }
+  };
+
+  return (
+    <SContainer>
+      <Header />
+      <SContent>
+        <Card maxWidth={400}>
+          <SLogo>
+            <img src={getAppConfig().logo} alt={getAppConfig().name} />
+          </SLogo>
+          <ConnectionSection />
+          <RequestSection />
+        </Card>
+      </SContent>
+      {scanner && (
+        <QRCodeScanner
+          onValidate={onQRCodeValidate}
+          onScan={onQRCodeScan}
+          onError={onQRCodeError}
+          onClose={onQRCodeClose}
+        />
+      )}
+    </SContainer>
+  );
+};

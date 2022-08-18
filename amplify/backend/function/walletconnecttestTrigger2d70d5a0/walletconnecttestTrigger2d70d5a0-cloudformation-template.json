@@ -1,0 +1,236 @@
+{
+    "AWSTemplateFormatVersion": "2010-09-09",
+    "Description": "Lambda resource stack creation using Amplify CLI",
+    "Parameters": {
+        "env": {
+            "Type": "String"
+        },
+        "storagewalletconnecttestName": {
+            "Type": "String",
+            "Default": "storagewalletconnecttestName"
+        },
+        "storagewalletconnecttestArn": {
+            "Type": "String",
+            "Default": "storagewalletconnecttestArn"
+        },
+        "storagewalletconnecttestStreamArn": {
+            "Type": "String",
+            "Default": "storagewalletconnecttestArn"
+        }
+    },
+    "Conditions": {
+        "ShouldNotCreateEnvResources": {
+            "Fn::Equals": [
+                {
+                    "Ref": "env"
+                },
+                "NONE"
+            ]
+        }
+    },
+    "Resources": {
+        "LambdaFunction": {
+            "Type": "AWS::Lambda::Function",
+            "Metadata": {
+                "aws:asset:path": "./src",
+                "aws:asset:property": "Code"
+            },
+            "Properties": {
+                "Handler": "index.handler",
+                "FunctionName": {
+                    "Fn::If": [
+                        "ShouldNotCreateEnvResources",
+                        "walletconnecttestTrigger2d70d5a0",
+                        {
+                            "Fn::Join": [
+                                "",
+                                [
+                                    "walletconnecttestTrigger2d70d5a0",
+                                    "-",
+                                    {
+                                        "Ref": "env"
+                                    }
+                                ]
+                            ]
+                        }
+                    ]
+                },
+                "Environment": {
+                    "Variables": {
+                        "ENV": {
+                            "Ref": "env"
+                        }
+                    }
+                },
+                "Role": {
+                    "Fn::GetAtt": [
+                        "LambdaExecutionRole",
+                        "Arn"
+                    ]
+                },
+                "Runtime": "nodejs14.x",
+                "Timeout": 25
+            }
+        },
+        "LambdaExecutionRole": {
+            "Type": "AWS::IAM::Role",
+            "Properties": {
+                "RoleName": {
+                    "Fn::If": [
+                        "ShouldNotCreateEnvResources",
+                        "walletconnecttestLambdaRole2d70d5a0",
+                        {
+                            "Fn::Join": [
+                                "",
+                                [
+                                    "walletconnecttestLambdaRole2d70d5a0",
+                                    "-",
+                                    {
+                                        "Ref": "env"
+                                    }
+                                ]
+                            ]
+                        }
+                    ]
+                },
+                "AssumeRolePolicyDocument": {
+                    "Version": "2012-10-17",
+                    "Statement": [
+                        {
+                            "Effect": "Allow",
+                            "Principal": {
+                                "Service": [
+                                    "lambda.amazonaws.com"
+                                ]
+                            },
+                            "Action": [
+                                "sts:AssumeRole"
+                            ]
+                        }
+                    ]
+                }
+            }
+        },
+        "lambdaexecutionpolicy": {
+            "DependsOn": [
+                "LambdaExecutionRole"
+            ],
+            "Type": "AWS::IAM::Policy",
+            "Properties": {
+                "PolicyName": "lambda-execution-policy",
+                "Roles": [
+                    {
+                        "Ref": "LambdaExecutionRole"
+                    }
+                ],
+                "PolicyDocument": {
+                    "Version": "2012-10-17",
+                    "Statement": [
+                        {
+                            "Effect": "Allow",
+                            "Action": [
+                                "logs:CreateLogGroup",
+                                "logs:CreateLogStream",
+                                "logs:PutLogEvents"
+                            ],
+                            "Resource": {
+                                "Fn::Sub": [
+                                    "arn:aws:logs:${region}:${account}:log-group:/aws/lambda/${lambda}:log-stream:*",
+                                    {
+                                        "region": {
+                                            "Ref": "AWS::Region"
+                                        },
+                                        "account": {
+                                            "Ref": "AWS::AccountId"
+                                        },
+                                        "lambda": {
+                                            "Ref": "LambdaFunction"
+                                        }
+                                    }
+                                ]
+                            }
+                        }
+                    ]
+                }
+            }
+        },
+        "walletconnecttestTriggerPolicy": {
+            "DependsOn": [
+                "LambdaExecutionRole"
+            ],
+            "Type": "AWS::IAM::Policy",
+            "Properties": {
+                "PolicyName": "lambda-trigger-policy-walletconnecttest",
+                "Roles": [
+                    {
+                        "Ref": "LambdaExecutionRole"
+                    }
+                ],
+                "PolicyDocument": {
+                    "Version": "2012-10-17",
+                    "Statement": [
+                        {
+                            "Effect": "Allow",
+                            "Action": [
+                                "dynamodb:DescribeStream",
+                                "dynamodb:GetRecords",
+                                "dynamodb:GetShardIterator",
+                                "dynamodb:ListStreams"
+                            ],
+                            "Resource": [
+                                {
+                                    "Ref": "storagewalletconnecttestStreamArn"
+                                }
+                            ]
+                        }
+                    ]
+                }
+            }
+        },
+        "walletconnecttestTrigger": {
+            "Type": "AWS::Lambda::EventSourceMapping",
+            "DependsOn": [
+                "walletconnecttestTriggerPolicy"
+            ],
+            "Properties": {
+                "BatchSize": 100,
+                "Enabled": true,
+                "EventSourceArn": {
+                    "Ref": "storagewalletconnecttestStreamArn"
+                },
+                "FunctionName": {
+                    "Fn::GetAtt": [
+                        "LambdaFunction",
+                        "Arn"
+                    ]
+                },
+                "StartingPosition": "LATEST"
+            }
+        }
+    },
+    "Outputs": {
+        "Name": {
+            "Value": {
+                "Ref": "LambdaFunction"
+            }
+        },
+        "Arn": {
+            "Value": {
+                "Fn::GetAtt": [
+                    "LambdaFunction",
+                    "Arn"
+                ]
+            }
+        },
+        "Region": {
+            "Value": {
+                "Ref": "AWS::Region"
+            }
+        },
+        "LambdaExecutionRole": {
+            "Value": {
+                "Ref": "LambdaExecutionRole"
+            }
+        }
+    }
+}

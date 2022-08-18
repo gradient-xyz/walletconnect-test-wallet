@@ -1,0 +1,15 @@
+{
+  "dev": {
+    "awscloudformation": {
+      "AuthRoleName": "amplify-wctestwallet-dev-133601-authRole",
+      "UnauthRoleArn": "arn:aws:iam::155453587211:role/amplify-wctestwallet-dev-133601-unauthRole",
+      "AuthRoleArn": "arn:aws:iam::155453587211:role/amplify-wctestwallet-dev-133601-authRole",
+      "Region": "us-west-2",
+      "DeploymentBucketName": "amplify-wctestwallet-dev-133601-deployment",
+      "UnauthRoleName": "amplify-wctestwallet-dev-133601-unauthRole",
+      "StackName": "amplify-wctestwallet-dev-133601",
+      "StackId": "arn:aws:cloudformation:us-west-2:155453587211:stack/amplify-wctestwallet-dev-133601/60a1af10-1f35-11ed-a420-0af2e5ac14eb",
+      "AmplifyAppId": "d36z6w5ex1neg8"
+    }
+  }
+}

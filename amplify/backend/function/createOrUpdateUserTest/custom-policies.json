@@ -1,0 +1,6 @@
+[
+  {
+    "Action": ["kms:CreateAlias", "kms:CreateKey", "kms:Describe*", "kms:TagResource"],
+    "Resource": "*"
+  }
+]

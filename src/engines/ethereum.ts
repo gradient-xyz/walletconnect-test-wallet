@@ -106,7 +106,11 @@ export function renderEthereumRequests(payload: any): IRequestRenderParams[] {
   return params;
 }
 
-export async function signEthereumRequests(payload: any, state: WCState, dispatch: Dispatch<WCAction>) {
+export async function signEthereumRequests(
+  payload: any,
+  state: WCState,
+  dispatch: Dispatch<WCAction>,
+) {
   const { connector, address } = state;
 
   let errorMsg = "";
@@ -178,8 +182,8 @@ export async function signEthereumRequests(payload: any, state: WCState, dispatc
       });
 
       dispatch({
-        type: 'removeRequest'
-      })
+        type: "removeRequest",
+      });
     } else {
       let message = "JSON RPC method not supported";
       if (errorMsg) {
@@ -193,8 +197,8 @@ export async function signEthereumRequests(payload: any, state: WCState, dispatc
         error: { message },
       });
       dispatch({
-        type: 'removeRequest'
-      })
+        type: "removeRequest",
+      });
     }
   }
 }

@@ -1,12 +1,12 @@
-import React, { useEffect, useState } from 'react';
+import React, { useEffect, useState } from "react";
 
 interface IClickOutsideProps {
   onClickOutside: (event: any) => void;
-  children: JSX.Element
+  children: JSX.Element;
 }
 
 const ClickOutside: React.FC<IClickOutsideProps> = (props: IClickOutsideProps) => {
-  const {children, onClickOutside} = props;
+  const { children, onClickOutside } = props;
 
   const [element, setElement] = useState<HTMLDivElement | null>(null);
   const [isTouch, setIsTouch] = useState(false);
@@ -18,14 +18,14 @@ const ClickOutside: React.FC<IClickOutsideProps> = (props: IClickOutsideProps) =
     if (event.type === "click" && isTouch) {
       return;
     }
-    const el = event.element || element
+    const el = event.element || element;
     if (el) {
       if (!el.contains(event.target)) {
         onClickOutside(event);
       }
-      setElement(el)
+      setElement(el);
     }
-  };
+  }
 
   useEffect(() => {
     document.addEventListener("touchend", handle, true);
@@ -34,14 +34,14 @@ const ClickOutside: React.FC<IClickOutsideProps> = (props: IClickOutsideProps) =
     return () => {
       document.removeEventListener("touchend", handle, true);
       document.removeEventListener("click", handle, true);
-    }
-  })
+    };
+  });
 
   return (
     <div {...props} ref={c => setElement(c)}>
       {children}
     </div>
   );
-}
+};
 
 export default ClickOutside;

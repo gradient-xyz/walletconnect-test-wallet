@@ -16,7 +16,9 @@
     "build": "react-scripts-ts build",
     "test": "react-scripts-ts test --env=jsdom",
     "eject": "react-scripts-ts eject",
-    "lint": "eslint -c './.eslintrc' --fix './src/**/*{.ts,.tsx}'"
+    "lint": "eslint -c './.eslintrc' --fix './src/**/*{.ts,.tsx}'",
+    "prettier-format": "prettier --config .prettierrc 'src/**/*{.ts,.tsx}' --write",
+    "amplify:createOrUpdateUserTest": "cd amplify/backend/function/createOrUpdateUserTest && tsc -p ./tsconfig.json && cd -"
   },
   "repository": {
     "type": "git",
@@ -71,5 +73,8 @@
     "not dead",
     "not ie <= 11",
     "not op_mini all"
-  ]
+  ],
+  "peerDependencies": {
+    "aws-serverless-express": "^3.4.0"
+  }
 }

@@ -31,7 +31,7 @@ interface IAccountDetailsProps {
 }
 
 const AccountDetails = (props: IAccountDetailsProps) => {
-  const {chains} = props
+  const { chains } = props;
   const { chainId, address, activeIndex, accounts, updateSession } = useWalletConnectContext();
   const windowWidth = getViewportDimensions().x;
   const maxWidth = 468;
@@ -44,24 +44,26 @@ const AccountDetails = (props: IAccountDetailsProps) => {
   }));
 
   function updateAddress(activeIndex: number) {
-    if(updateSession) {
-      updateSession(undefined, activeIndex)
+    if (updateSession) {
+      updateSession(undefined, activeIndex);
     }
   }
 
   function updateChain(chainId: number | string) {
-    if(updateSession) {
-      updateSession(Number(chainId), undefined)
+    if (updateSession) {
+      updateSession(Number(chainId), undefined);
     }
   }
 
-  const { user } = useAuthenticator((context) => [context.user]);
+  const { user } = useAuthenticator(context => [context.user]);
 
-  if(address) {
+  if (address) {
     return (
       <React.Fragment>
         <SSection>
-          <h6>{"Account"} { user.username }</h6>
+          <h6>
+            {"Account"} {user.username}
+          </h6>
           <SAddressDropdownWrapper>
             <SBlockie size={40} address={address} />
             <Dropdown
@@ -87,7 +89,7 @@ const AccountDetails = (props: IAccountDetailsProps) => {
       </React.Fragment>
     );
   } else {
-    return (<></>)
+    return <></>;
   }
 };
 export default AccountDetails;
